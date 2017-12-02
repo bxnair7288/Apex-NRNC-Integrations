@@ -1,0 +1,12 @@
+list<NRNCNRRProjects__c> updproj = new list<NRNCNRRProjects__c>();
+list<NRNCNRRProjects__c>lstproj = [SELECT record_updated__c,ID, application_number__c, Project_Status__c
+FROM NRNCNRRProjects__c where and Project_Status__c != 'Paid' and Project_Status__c != 'Withdrawn'];
+
+for (NRNCNRRProjects__c proj : lstproj ){
+       system.debug('@@@1___'+proj.ID); 
+       proj.record_updated__c = false;
+       updproj.add(proj);
+}
+update(updproj);
+system.debug('@@@1___'+lstproj .size()); 
+system.debug('@@@2___'+updproj .size()); 

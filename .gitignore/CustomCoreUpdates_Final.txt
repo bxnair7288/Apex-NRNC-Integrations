@@ -1,0 +1,226 @@
+ 
+Settings
+Logout
+Help
+About
+info
+Standard & Custom Objects
+Metadata Types & Components
+Session Information
+queries
+SOQL Query
+SOSL Search
+Streaming Push Topics
+data
+Insert
+Update
+Upsert
+Delete
+Undelete
+Purge
+migration
+Deploy
+Retrieve
+utilities
+REST Explorer
+Apex Execute
+Password Management
+Bulk API Job Status
+Metadata API Process Status
+Apex Execute	BALARAM NAIR AT PACIFIC GAS AND ELECTRIC COMPANY ON API 34.0
+Enter Apex code to be executed as an anonymous block:
+
+Log Category:    Log Level: 
+
+ 
+
+Results
+
+34.0 APEX_CODE,DEBUG
+Execute Anonymous: map<string,NRNCNRRProjects__c>mapNRNCNRRProjects = new map<string,NRNCNRRProjects__c>();
+Execute Anonymous:  
+Execute Anonymous: list<NRNCNRRProjects__c>lstNRNCNRRProjects = [select
+Execute Anonymous:      id,application_number__c,Application_Rcvd_Date__c,elec_sa_id__c,gas_sa_id__c,ID_of_Project__c,
+Execute Anonymous:      Inspection_Date_for_2K__c,kW__c,kWh__c,PreInstall_Review_Complete__c,Project_ID__c,Project_Status__c,
+Execute Anonymous:      record_updated__c,Tech_Rev_Engr__c,Therms__c,Total_Incentive_Amt__c
+Execute Anonymous:                                from NRNCNRRProjects__c where application_number__c like 'NC%' and record_updated__c = false
+Execute Anonymous:                                and Project_Status__c != 'Paid' and Project_Status__c != 'Withdrawn' limit 50];
+Execute Anonymous:  
+Execute Anonymous: if(!lstNRNCNRRProjects.isEmpty()){ 
+Execute Anonymous:      for(NRNCNRRProjects__c project : lstNRNCNRRProjects){
+Execute Anonymous:          mapNRNCNRRProjects.put(project.Project_ID__c,project);
+Execute Anonymous:     }
+Execute Anonymous: }
+Execute Anonymous:  
+Execute Anonymous: system.debug('@@@1___'+lstNRNCNRRProjects.size());
+Execute Anonymous:  
+Execute Anonymous: list<NRNCNRRProjects__c>lstUpdateproject = new list<NRNCNRRProjects__c>();
+Execute Anonymous:  
+Execute Anonymous: if(!mapNRNCNRRProjects.isEmpty()){
+Execute Anonymous:   
+Execute Anonymous:    list<eo3__Ecology_Project__c>lstEcology =[select id,
+Execute Anonymous:           Pre_Field_Report_Conducted__c,Technical_Review_Engineer__c,
+Execute Anonymous:           Application_Package_Created_and_Attached__c,Appliaction_Signed__c,
+Execute Anonymous:           Application_Received_Date__c,Engineer_Review_Complete__c,Engineer_Review_Complete_Date__c,
+Execute Anonymous:           Implementation_Manager_Review_Complete__c,
+Execute Anonymous:           eo3__Pre_Inspection_Required__c,
+Execute Anonymous:           eo3__Pre_Inspection_Completed__c,
+Execute Anonymous:           Use_Engineer_s_Pre_Field_Report__c,
+Execute Anonymous:           Reason_Engineer_s_Pre_Field_Not_Used__c,
+Execute Anonymous:           Pre_Installation_Review_Recommendation__c,
+Execute Anonymous:           M_V_Plan__c,
+Execute Anonymous:           Energy_Savings__c,
+Execute Anonymous:           Site_Inspection_Overview_TR__c,
+Execute Anonymous:           Statement_of_Influence_TR__c,
+Execute Anonymous:           Baseline_Assumptions_TR__c,
+Execute Anonymous:           Existing_Equipment_TR__c,
+Execute Anonymous:           Proposed_Equipment_TR__c,
+Execute Anonymous:           Existing_Operation_TR__c,
+Execute Anonymous:           Proposed_Operation_TR__c,
+Execute Anonymous:           Calculation_Methodology_TR__c,
+Execute Anonymous:           Photos_TR__c,
+Execute Anonymous:           Report_and_Application_Package_Attached__c,
+Execute Anonymous:           QC_Required__c,
+Execute Anonymous:           Pre_Install_QC_Required__c,
+Execute Anonymous:           Pre_Installation_Review_Complete__c,
+Execute Anonymous:           Pre_Install_Review_Complete__c,
+Execute Anonymous:           eo3__Total_Incentive_Amount__c,
+Execute Anonymous:           eo3__Project_ID__c,
+Execute Anonymous:           Application_Number__c,
+Execute Anonymous:           Approval_Status__c,
+Execute Anonymous:           Application_Approved__c,
+Execute Anonymous:           Installation_Status__c,
+Execute Anonymous:           eo3__Project_Status__c,
+Execute Anonymous:           Engineer__c,
+Execute Anonymous:           Program_Manager__c,
+Execute Anonymous:           Selected_for_Parallel_Review__c,
+Execute Anonymous:           Project_Construction_Type__c,
+Execute Anonymous:           Payee_Tax_ID__c
+Execute Anonymous:    from eo3__Ecology_Project__c where eo3__Project_ID__c IN :
+Execute Anonymous:             mapNRNCNRRProjects.keyset() and (eo3__Project_Status__c != 'Paid' and eo3__Project_Status__c != 'Withdrawn' and eo3__Project_Status__c != 'Approved for Payment')  ];
+Execute Anonymous:  
+Execute Anonymous: if(!lstEcology.isEmpty()){
+Execute Anonymous:   for(eo3__Ecology_Project__c ecoProject : lstEcology){
+Execute Anonymous:      if(mapNRNCNRRProjects.containsKey(ecoProject.eo3__Project_ID__c)){
+Execute Anonymous:        
+Execute Anonymous:         //flag record_updated
+Execute Anonymous:         NRNCNRRProjects__c project = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c);
+Execute Anonymous:         project.record_updated__c = true;
+Execute Anonymous:         lstUpdateproject.add(project);
+Execute Anonymous:  
+Execute Anonymous:         //Update Project Record
+Execute Anonymous:         system.debug('@@@2___'+ecoProject.eo3__Project_ID__c);
+Execute Anonymous:         //prod ID = 005E0000003SHW5
+Execute Anonymous:         //QA   ID = 005E0000003SHW5
+Execute Anonymous: //ID id = 005E0000003SHW5;
+Execute Anonymous:        if  (ecoProject.eo3__Project_Status__c  == 'Project Development' || ecoProject.eo3__Project_Status__c == 'Pre-Install Review') {
+Execute Anonymous:            ecoProject.Application_Approved__c = null;
+Execute Anonymous:            ecoProject.Installation_Status__c = null;
+Execute Anonymous:        }
+Execute Anonymous:        //Jeremy
+Execute Anonymous:        if (ecoProject.Technical_Review_Engineer__c == null)
+Execute Anonymous:             ecoProject.Technical_Review_Engineer__c  = '005E0000003SHW5';
+Execute Anonymous: 
+Execute Anonymous:        if (ecoProject.Engineer__c == null)
+Execute Anonymous:             ecoProject.Engineer__c  = '005E0000003SHW5';   
+Execute Anonymous:        //Cecilia Tai
+Execute Anonymous:        if (ecoProject.Program_Manager__c == null)
+Execute Anonymous:             ecoProject.Program_Manager__c  = '005E0000001sNpE';
+Execute Anonymous:       
+Execute Anonymous:        if (ecoProject.Project_Construction_Type__c == null) 
+Execute Anonymous:            ecoProject.Project_Construction_Type__c = 'Greenfield';
+Execute Anonymous: //        if (ecoProject.Application_Received_Date__c == null || ecoProject.Application_Received_Date__c == '' || ecoProject.Application_Received_Date__c > Datetime.newInstance('2015-07-01T00:00:00Z') )
+Execute Anonymous:         if (ecoProject.Application_Received_Date__c == null )
+Execute Anonymous:             ecoProject.Application_Received_Date__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Application_Rcvd_Date__c;
+Execute Anonymous:        
+Execute Anonymous:         if (ecoProject.Application_Number__c.left(2) == '2K' ) {
+Execute Anonymous:             system.debug('@@@2A___'+ecoProject.Application_Number__c.left(2)+' / '+ecoProject.eo3__Project_ID__c);
+Execute Anonymous:             if (mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Inspection_Date_for_2K__c != null) {
+Execute Anonymous:             ecoProject.eo3__Pre_Inspection_Completed__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Inspection_Date_for_2K__c;
+Execute Anonymous:             if (ecoProject.eo3__Pre_Inspection_Required__c != TRUE) ecoProject.eo3__Pre_Inspection_Required__c = TRUE;
+Execute Anonymous:           }
+Execute Anonymous:   
+Execute Anonymous:         }
+Execute Anonymous:         if (ecoProject.Application_Number__c.left(2) == 'NC' ) {
+Execute Anonymous:             if (ecoProject.Payee_Tax_ID__c == null) ecoProject.Payee_Tax_ID__c = '999999999';
+Execute Anonymous:         }
+Execute Anonymous:         ecoProject.Pre_Install_Review_Complete__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).PreInstall_Review_Complete__c;
+Execute Anonymous:  
+Execute Anonymous:         if (ecoProject.Pre_Field_Report_Conducted__c != 'No' ) ecoProject.Pre_Field_Report_Conducted__c = 'No';  
+Execute Anonymous:         if (ecoProject.Application_Package_Created_and_Attached__c != TRUE) ecoProject.Application_Package_Created_and_Attached__c = TRUE;
+Execute Anonymous:         if (ecoProject.Appliaction_Signed__c != TRUE) ecoProject.Appliaction_Signed__c = TRUE;
+Execute Anonymous:         if (ecoProject.Engineer_Review_Complete__c != TRUE)  ecoProject.Engineer_Review_Complete__c = TRUE;
+Execute Anonymous:         if (ecoProject.Engineer_Review_Complete_Date__c == null )
+Execute Anonymous:             ecoProject.Engineer_Review_Complete_Date__c  = ecoProject.Application_Received_Date__c;
+Execute Anonymous:         if (ecoProject.Implementation_Manager_Review_Complete__c != TRUE) ecoProject.Implementation_Manager_Review_Complete__c = TRUE;
+Execute Anonymous:         if (ecoProject.Use_Engineer_s_Pre_Field_Report__c  != 'No') ecoProject.Use_Engineer_s_Pre_Field_Report__c  = 'No';
+Execute Anonymous:         if (ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c == null || ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c == '')
+Execute Anonymous:             ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Pre_Installation_Review_Recommendation__c == null || ecoProject.Pre_Installation_Review_Recommendation__c == '')
+Execute Anonymous:             ecoProject.Pre_Installation_Review_Recommendation__c = 'N/A';
+Execute Anonymous:         if (ecoProject.M_V_Plan__c == null || ecoProject.M_V_Plan__c == '')
+Execute Anonymous:             ecoProject.M_V_Plan__c = 'N/A';
+Execute Anonymous:         if (ecoProject.Energy_Savings__c == null || ecoProject.Energy_Savings__c == '')
+Execute Anonymous:            ecoProject.Energy_Savings__c = 'Approved';
+Execute Anonymous:         if (ecoProject.Site_Inspection_Overview_TR__c == null || ecoProject.Site_Inspection_Overview_TR__c == '')
+Execute Anonymous:             ecoProject.Site_Inspection_Overview_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Statement_of_Influence_TR__c == null || ecoProject.Statement_of_Influence_TR__c == '')
+Execute Anonymous:             ecoProject.Statement_of_Influence_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Baseline_Assumptions_TR__c == null || ecoProject.Baseline_Assumptions_TR__c == '')
+Execute Anonymous:             ecoProject.Baseline_Assumptions_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Existing_Equipment_TR__c == null || ecoProject.Existing_Equipment_TR__c == '')
+Execute Anonymous:             ecoProject.Existing_Equipment_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:        
+Execute Anonymous:         if (ecoProject.Proposed_Equipment_TR__c == null || ecoProject.Proposed_Equipment_TR__c == '')
+Execute Anonymous:             ecoProject.Proposed_Equipment_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Existing_Operation_TR__c == null || ecoProject.Existing_Operation_TR__c == '')
+Execute Anonymous:             ecoProject.Existing_Operation_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Proposed_Operation_TR__c == null || ecoProject.Proposed_Operation_TR__c == '')
+Execute Anonymous:             ecoProject.Proposed_Operation_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Calculation_Methodology_TR__c == null || ecoProject.Calculation_Methodology_TR__c == '')
+Execute Anonymous:             ecoProject.Calculation_Methodology_TR__c  = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Photos_TR__c == null || ecoProject.Photos_TR__c == '')
+Execute Anonymous:             ecoProject.Photos_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+Execute Anonymous:         if (ecoProject.Report_and_Application_Package_Attached__c != TRUE) 
+Execute Anonymous:             ecoProject.Report_and_Application_Package_Attached__c  = TRUE;
+Execute Anonymous:        
+Execute Anonymous:         ecoProject.QC_Required__c  = 'No';
+Execute Anonymous:         ecoProject.Pre_Install_QC_Required__c = 'No';
+Execute Anonymous:         ecoProject.Pre_Installation_Review_Complete__c = TRUE;
+Execute Anonymous:        
+Execute Anonymous:       //  if (ecoProject.eo3__Total_Incentive_Amount__c == null || ecoProject.eo3__Total_Incentive_Amount__c == 0.0) {
+Execute Anonymous:         if (mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Total_Incentive_Amt__c != null) {
+Execute Anonymous:            ecoProject.eo3__Total_Incentive_Amount__c = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Total_Incentive_Amt__c;
+Execute Anonymous:            ecoProject.eo3__Rebate_Override__c = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Total_Incentive_Amt__c;
+Execute Anonymous:            ecoProject.eo3__Override_Reason__c ='Other';
+Execute Anonymous:            ecoProject.eo3__Other_Override_Reason__c = 'Total Incentive populated from MDSS';
+Execute Anonymous:          }
+Execute Anonymous:      //   }
+Execute Anonymous:         // update flag
+Execute Anonymous:         if (ecoProject.eo3__Project_Status__c != 'Project Development')
+Execute Anonymous:             ecoProject.Approval_Status__c = 'PAA Approved';
+Execute Anonymous: 
+Execute Anonymous:         if (ecoProject.eo3__Project_Status__c == 'Installation')
+Execute Anonymous:             ecoProject.Selected_for_Parallel_Review__c = 'No';
+Execute Anonymous: 
+Execute Anonymous:      
+Execute Anonymous:      }
+Execute Anonymous:   }
+Execute Anonymous:  
+Execute Anonymous:   update lstEcology;
+Execute Anonymous:   if(!lstUpdateproject.isEmpty()){
+Execute Anonymous:      update lstUpdateproject;
+Execute Anonymous:   }
+Execute Anonymous:  
+Execute Anonymous: }
+Execute Anonymous: system.debug('@@@3___'+lstEcology.size());
+Execute Anonymous: }
+21:13:16.077 (77453131)|EXECUTION_STARTED
+21:13:16.077 (77462167)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+21:13:16.089 (89214329)|USER_DEBUG|[16]|DEBUG|@@@1___4
+21:13:16.130 (130615527)|USER_DEBUG|[177]|DEBUG|@@@3___0
+21:13:16.130 (130669747)|CODE_UNIT_FINISHED|execute_anonymous_apex
+21:13:16.131 (131981253)|EXECUTION_FINISHED
+
+Requested in 0.470 sec
+Workbench 34.0.1

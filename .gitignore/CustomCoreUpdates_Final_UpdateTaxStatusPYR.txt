@@ -1,0 +1,78 @@
+map<string,NRNCNRRProjects__c>mapNRNCNRRProjects = new map<string,NRNCNRRProjects__c>();
+
+list<NRNCNRRProjects__c>lstNRNCNRRProjects = [select
+     id,application_number__c,Application_Rcvd_Date__c,elec_sa_id__c,gas_sa_id__c,ID_of_Project__c,
+     Inspection_Date_for_2K__c,kW__c,kWh__c,PreInstall_Review_Complete__c,Project_ID__c,Project_Status__c,
+     record_updated__c,Tech_Rev_Engr__c,Therms__c,Total_Incentive_Amt__c, Tax_status__c, program_year__c
+                               from NRNCNRRProjects__c where  record_updated__c = false
+                               and Project_Status__c != 'Paid' and Project_Status__c != 'Withdrawn'  limit 900];
+ 
+if(!lstNRNCNRRProjects.isEmpty()){ 
+     for(NRNCNRRProjects__c project : lstNRNCNRRProjects){
+         mapNRNCNRRProjects.put(project.Project_ID__c,project);
+    }
+}
+
+system.debug('@@@1___'+lstNRNCNRRProjects.size());
+ 
+list<NRNCNRRProjects__c>lstUpdateproject = new list<NRNCNRRProjects__c>();
+list<eo3__Ecology_Project__c>lstUpdateecoproject = new list<eo3__Ecology_Project__c>();
+
+
+if(!mapNRNCNRRProjects.isEmpty()){
+  
+   list<eo3__Ecology_Project__c>lstEcology =[select id,Program_Year__c, Payee_Tax_ID_Status__c,eo3__Project_ID__c 
+   from eo3__Ecology_Project__c where eo3__Project_ID__c IN :
+            mapNRNCNRRProjects.keyset() and (eo3__Project_Status__c != 'Paid' and eo3__Project_Status__c != 'Approved for Payment')  ];
+ 
+if(!lstEcology.isEmpty()){
+	integer i;
+    integer j; 
+system.debug('@@@2___NOT empty');
+  for(eo3__Ecology_Project__c ecoProject : lstEcology){
+     if(mapNRNCNRRProjects.containsKey(ecoProject.eo3__Project_ID__c)){
+        boolean found=false;
+        //flag record_updated
+        NRNCNRRProjects__c project = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c);
+        project.record_updated__c = true;
+        lstUpdateproject.add(project);
+ 
+	    if (ecoProject.Payee_Tax_ID_Status__c == null || ecoProject.Payee_Tax_ID_Status__c == '') {
+	  //  	i++;
+	    	found = true;
+	    	if(mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Tax_status__c == 'N')
+                       ecoProject.Payee_Tax_ID_Status__c = 'N – Non-Exempt';
+        	if(mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Tax_status__c == 'C')
+        			   ecoProject.Payee_Tax_ID_Status__c = 'C – Corporation';
+        	if(mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Tax_status__c == 'S')
+                       ecoProject.Payee_Tax_ID_Status__c = 'S – Sole Proprietor';
+        	if(mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Tax_status__c == 'E')
+                       ecoProject.Payee_Tax_ID_Status__c = 'E – Exempt';
+        }
+	    if (ecoProject.Program_Year__c == null || ecoProject.Program_Year__c == '') {
+	    //	j = j + 1;
+	    	found = true;
+	    	ecoProject.Program_Year__c = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Program_Year__c;
+	    }     
+	    if (found)
+	    	lstUpdateecoproject.add(ecoProject);
+     }
+//system.debug('@@@3 integer i___'+i);
+//system.debug('@@@3 integer j___'+j);
+  }
+ 
+  //update lstEcology;
+  if (!lstUpdateecoproject.isEmpty()){
+  	update lstUpdateecoproject;
+  }
+  if(!lstUpdateproject.isEmpty()){
+     update lstUpdateproject;
+  }
+ 
+}
+system.debug('@@@3___'+lstEcology.size());
+system.debug('@@@4___'+lstUpdateecoproject.size());
+system.debug('@@@5___'+lstUpdateproject.size());
+
+
+}

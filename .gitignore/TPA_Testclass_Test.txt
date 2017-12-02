@@ -1,0 +1,1317 @@
+@istest(seealldata=true)
+public without sharing class TPA_Testclass_Test {
+    private static testmethod void Test_seconduser_locationaccess() {
+     TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+      system.assert(tpa_data.contact2.id != null);
+     
+      system.runas(tpa_data.user2) {
+           List<tradepro_location__C> tplocs = [select id from tradepro_location__C];
+               system.assertequals(0,tplocs.size());
+                    
+      }
+      system.runas(tpa_data.user1 ) {
+        list<string> contactids = new list<string>();
+        contactids.add(tpa_data.contact2.id);
+        TPA_LocationShare.SecondayNewUserLocationAccess(contactids);
+        system.runas(tpa_data.user2) {
+            List<tradepro_location__C> tplocs1 = [select id from tradepro_location__C];
+                system.assert(tplocs1.size() > 0);             
+         }
+      }
+    }
+    
+
+    
+    /* Test for RebateApp  */
+            private static testmethod void Test_misssing_inputs_tab1() {
+           List<Apexpages.Message> msgs;      
+           TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+           system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1     
+               reb_app_ext.sa_id = '';
+               reb_app_ext.account_number = '';
+               reb_app_ext.certify1 = false;
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               msgs = ApexPages.getMessages(); 
+               system.debug('The messages : ' + msgs); 
+               if (msgs.size()>0) {      
+                    
+
+                 system.assert(msgs[0].getSummary().contains('You must enter a value for Service ID#'));     
+                 system.assert(msgs[1].getSummary().contains('You must enter a value for Account Number'));     
+                 system.assert(msgs[2].getSummary().contains('You must read and check the certification.'));     
+                 system.debug(msgs);  
+               
+               } else {
+                  system.assert(1==0);
+               
+               }   
+                                                      
+         }
+    } 
+    private static testmethod void Test_invalid_inputs_tab1() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1     
+               reb_app_ext.sa_id = '12345678889';
+               reb_app_ext.account_number = '12121211121';
+               reb_app_ext.certify1 = True;
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               msgs = ApexPages.getMessages(); 
+               system.debug('The messages : ' + msgs); 
+               if (msgs.size()>0) {      
+                 system.assert(msgs[0].getSummary().contains('The Account number and Service ID combination entered are not correct. Please review your entry and enter the correct combination'));     
+                 system.debug(msgs);  
+               
+               } else {
+                  system.assert(1==0);
+               
+               }   
+                                                      
+         }
+    }
+    private static testmethod void Test_validation_Rebate_tab1() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1 
+               system.assert(reb_app_ext.getLocations().size() > 0);   //from database
+               system.assert(reb_app_ext.getVintages().size() > 0); 
+               system.assert(reb_app_ext.getLocations().size() > 0);   //from cache
+               reb_app_ext.sa_id = tpa_data.site[0].eo3__Electric_SAID_Code__c;
+               reb_app_ext.account_number = tpa_data.site[0].Billing_Account_ID__c;
+               reb_app_ext.certify1 = True;
+               
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               msgs = ApexPages.getMessages(); 
+               system.debug('The messages : ' + msgs); 
+               system.assertequals(msgs.size(),0);
+               msgs.clear();
+               
+               //reb_app_ext.reb_app.Vintage__c = null; //added by nalini
+               reb_app_ext.saveRebate();    
+                  
+               msgs = ApexPages.getMessages(); 
+               system.Debug('The messages : '+ msgs);
+               system.debug('############ '+reb_app_ext.reb_app.Vintage__c);
+               boolean m1 = false, m2 = false, m3 = false,m4 = false,m5=false, m6=false, m7=false;
+               for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('You must enter a value for Building Vintage')) {
+                    m1 = true;
+                 }
+
+                 if (msg.getdetail().contains('You must enter a value for First Name')) {
+                    m4 = true;
+                 }
+
+                 if (msg.getdetail().contains('You must enter a value for Last Name')) {
+                    m5 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Phone Number')) {
+                    m6 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Payment Recepient')) {
+                    m7 = true;
+                 }
+  
+               }
+               if(reb_app_ext.reb_app.Vintage__c == null)
+               system.assertequals(m1, true);     
+             //  system.assertequals(m2, true);     
+            //   system.assertequals(m3, true);     
+               system.assertequals(m4, true); 
+               //system.assertequals(m5, true);                                       
+               system.assertequals(m6, true);                                       
+               system.assertequals(m7, true);    
+               
+
+               reb_app_ext.reb_app.Payee_Type__c = '';
+               reb_app_ext.onChangePayee();
+              // system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c =='');  
+
+               reb_app_ext.reb_app.Payee_Type__c = 'Customer';
+               reb_app_ext.onChangePayee();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               //system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,reb_app.Customer_Address1__c); 
+               system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,reb_app.Customer_Mailing_Address_Ln1__c); 
+                   
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.reb_app.Payee_Type__c = 'Trade Professional';
+               reb_app_ext.onChangePayee();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,tpa_data.tl.mailing_address__c);
+                                                     
+         }
+    }  
+     private static testmethod void Test_Save_Rebate_tab2() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1 
+               reb_app_ext.sa_id = tpa_data.site[0].eo3__Electric_SAID_Code__c;
+               reb_app_ext.account_number = tpa_data.site[0].Billing_Account_ID__c;
+               reb_app_ext.certify1 = True;
+               
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.reb_app.Payee_Type__c = 'Trade Professional';
+               reb_app_ext.onChangePayee();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,tpa_data.tl.mailing_address__c);
+                 
+               reb_app.Building_Type__c = 'CNC - Health/Medical - Clinic';
+               reb_app.Vintage__c  = '75';
+              // reb_app.Building_Square_Feet__c = '1000';
+               reb_app.Property_Occupied_By__c = 'Owner';
+               reb_app.Primary_Contact_First_Name__c = 'James';
+               reb_app.Primary_Contact_Last_Name__c = 'Bond';
+               reb_app.Primary_Contact_Phone__c = '0079878273'; 
+               reb_app.Primary_Contact_Email__c = 'test@testmail.com';
+               reb_app_ext.saveRebate();  
+               system.assertequals(ApexPages.getMessages().size() ,0);
+
+                reb_app_ext.reb_app.Certify_Payment_Release__c = true;
+                reb_app_ext.continueToTab3();
+               
+                msgs = ApexPages.getMessages(); 
+                boolean m1 = false;
+                for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('Please read and check the payment release authorization.')) {
+                    m1 = true;
+                 }
+                }
+                system.assertequals(m1,false);                
+            
+               reb_app_ext.reb_app.Certify_Payment_Release__c = false;
+                reb_app_ext.continueToTab3();
+                msgs = ApexPages.getMessages(); 
+                m1 = false;
+                for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('Please read and check the payment release authorization.')) {
+                    m1 = true;
+                 }
+                }                
+                system.assertequals(m1,true);
+                
+                reb_app.Payee_Address_1__c ='';
+                reb_app.Payee_City__c = '';
+                reb_app.Payee_State__c = '';
+                reb_app.Payee_Zip__c = '';
+                reb_app_ext.isvalidLoc();
+                reb_app.Payee_Address_1__c ='street';
+                reb_app.Payee_State__c = '12';
+                reb_app.Payee_Zip__c = '9876543210';
+                reb_app.Payee_City__c = 'Test LosAngels Test LosAngels Test LosAngels Test LosAngels Test LosAngels';
+                reb_app_ext.isvalidLoc();
+                reb_app.Payee_Type__c = 'Customer';
+                reb_app_ext.saveRebate();
+                reb_app_ext.continueToTab3();
+                
+                msgs = ApexPages.getMessages();
+                //System.Assert(msgs[1].getDetail().Contains('Address Line 1 needs to be entered'));
+                //System.Assert(msgs[1].getDetail().Contains('City needs to be entered (40 characters or less)'));
+               // System.Assert(msgs[1].getDetail().Contains('State needs to be a two character text'));
+                //System.Assert(msgs[1].getDetail().Contains('Zip Code needs to be a entered'));
+                System.Debug('$$$$$$$$$$$ '+msgs);
+                                                     
+         }
+    }   
+
+     private static testmethod void Test_Save_RebateMeasure_tab3() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1 
+               reb_app_ext.sa_id = tpa_data.site[0].eo3__Electric_SAID_Code__c;
+               reb_app_ext.account_number = tpa_data.site[0].Billing_Account_ID__c;
+               reb_app_ext.certify1 = True;
+               
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.reb_app.Payee_Type__c = 'Trade Professional';              
+               reb_app_ext.onChangePayee();
+               reb_app_ext.reb_app.mailing_locations__c = tpa_data.tl1.id;
+               reb_app_ext.onchangemailinglocation();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,tpa_data.tl1.mailing_address__c);
+                 
+               reb_app.Building_Type__c = 'CNC - Health/Medical - Clinic';
+               reb_app.Vintage__c  = '75';
+               //reb_app.Building_Square_Feet__c = '1000';
+               reb_app.Property_Occupied_By__c = 'Owner';
+               reb_app.Primary_Contact_First_Name__c = 'James';
+               reb_app.Primary_Contact_Last_Name__c = 'Bond';
+               reb_app.Primary_Contact_Phone__c = '0079878273'; 
+               reb_app.Primary_Contact_Email__c = 'test@testmail.com';
+               reb_app_ext.saveRebate();  
+               system.assertequals(ApexPages.getMessages().size() ,0);
+               system.assert(reb_app_ext.reb_app.id != null);
+
+                reb_app_ext.reb_app.Certify_Payment_Release__c = true;
+                reb_app_ext.continueToTab3();
+                system.assert(reb_app_ext.getMeasureTypes().size() > 0);
+                system.assert(reb_app_ext.getMeasureTypes().size() > 0);
+                reb_app_ext.Reb_App_Measure.Measure_Type__c = 'HVAC';
+                reb_app_ext.onChangeMeasureType();                
+               
+                system.assert(reb_app_ext.getMeasures().size() > 0);
+
+                string rebate_code  = 'HV031';
+                
+                reb_app_ext.measurecode = rebate_code;
+                reb_app_ext.onChangeMeasure() ;  
+                reb_app_ext.Reb_App_Measure.Manufacturer__c = 'm123';
+                reb_app_ext.Reb_App_Measure.Model_Number__c = 'mo123';                                   
+                reb_app_ext.Reb_App_Measure.Purchase_Date__c  = system.today();                                   
+                reb_app_ext.Reb_App_Measure.Date_Installed__c  = system.today();                                   
+                reb_app_ext.Reb_App_Measure.Installed_by__c  = 'Customer';  
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 2;
+                reb_app_ext.Reb_App_Measure.Invoice_Number__c = '1501';
+                reb_app_ext.Reb_App_Measure.Purchase_Price__C = 50.0;
+                system.assert(reb_app_ext.Reb_App_Measure.Rebate_per_unit__c > 0);
+                decimal reb_per_unit = reb_app_ext.Reb_App_Measure.Rebate_per_unit__c;                                
+                system.debug('############REBATE MEASURE '+reb_app_ext.Reb_App_Measure);
+                reb_app_ext.SaveRebateMeasure(); 
+                system.assert(reb_app_ext.Rebate_Measures[0].Total_Rebate_value_per_measure__c == reb_per_unit *  reb_app_ext.Rebate_Measures[0].Quantity__c);
+                system.assertequals(reb_app_ext.rebate_measures.size(),1);
+                reb_app_ext.selectedRecordid = reb_app_ext.rebate_measures[0].id;
+                reb_app_ext.EditMeasure();                                                              
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 3;
+                reb_app_ext.SaveRebateMeasure(); 
+                system.assert(reb_app_ext.Rebate_Measures[0].Total_Rebate_value_per_measure__c == reb_per_unit *  reb_app_ext.Rebate_Measures[0].Quantity__c);
+                reb_app_ext.selectedRecordid = reb_app_ext.Rebate_Measures[0].id;
+                reb_app_ext.ResetMeasure();
+                system.assertequals(reb_app_ext.Reb_app_Measure.id,null);
+                reb_app_ext.DeleteMeasure();
+                
+                reb_app_ext.continueToTab4();
+                msgs = ApexPages.getMessages(); 
+                boolean m1 = false;
+                for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('You must add at least one measure code.')) {
+                    m1 = true;
+                 }                
+                }
+                system.assertequals(m1,true);
+                
+                system.assert(reb_app_ext.getMeasureTypes().size() > 0);
+                system.assert(reb_app_ext.getMeasureTypes().size() > 0);
+                reb_app_ext.Reb_App_Measure.Measure_Type__c = 'HVAC';
+                reb_app_ext.onChangeMeasureType();                
+               
+                system.assert(reb_app_ext.getMeasures().size() > 0);
+
+                
+                
+                reb_app_ext.measurecode = rebate_code;
+                reb_app_ext.onChangeMeasure() ;  
+                reb_app_ext.Reb_App_Measure.Manufacturer__c = 'm123';
+                reb_app_ext.Reb_App_Measure.Model_Number__c = 'mo123';                                   
+                reb_app_ext.Reb_App_Measure.Purchase_Date__c  = system.today();                                   
+                reb_app_ext.Reb_App_Measure.Date_Installed__c  = system.today();                                   
+                reb_app_ext.Reb_App_Measure.Installed_by__c  = 'Customer';  
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 2;
+                system.assert(reb_app_ext.Reb_App_Measure.Rebate_per_unit__c > 0);
+                reb_per_unit = reb_app_ext.Reb_App_Measure.Rebate_per_unit__c;                                
+                
+                 reb_app_ext.SaveRebateMeasure(); 
+                 reb_app_ext.continueToTab4();
+                 
+                
+                Pagereference pageRef1 = Page.TPA_RebateApp;    
+                Test.setCurrentPage(pageRef1);
+                reb_app = [SELECT Payee_Address_1__c, Payee_Address_2__c, Property_Occupied_By__c, Building_Square_Feet__c, Building_Type__c, Vintage__c, Certify_Payment_Release__c, Payee_City__c, CreatedById, CreatedDate, Account_Number__c, electric_SA_ID__c, Gas_SA_ID__c, Customer_Name__c, IsDeleted, Primary_Contact_Email__c, Primary_Contact_First_Name__c, Title__c, LastModifiedById, LastModifiedDate, Primary_Contact_Last_Name__c, Last_Active_Tab__c, Name, Payee_Name__c, Primary_Contact_Phone__c, Customer_Address1__c, Customer_Address2__c, Customer_City__c, Customer_State__c, Customer_Zip__c, Payee_Type__c, Id, Service_Type_Code__c, Site_Record_ID__c, Payee_State__c, Status__c, SystemModstamp, TradePro_Location__c, Payee_Zip__c, recordtypeid, mailing_locations__c FROM Rebate_Application__c where id = :reb_app.id];
+                //Rebate_Application__c reb_app = new Rebate_Application__c();      
+                controller = new ApexPages.StandardController(reb_app); 
+                reb_app_ext = new TPA_RebateAppController(controller); 
+                
+                Pagereference pageRef2 = Page.TPA_Rebate_Landing_Page;    
+                Test.setCurrentPage(pageRef1);
+                reb_app = [SELECT Payee_Address_1__c, Payee_Address_2__c, Property_Occupied_By__c, Building_Square_Feet__c, Building_Type__c, Vintage__c, Certify_Payment_Release__c, Payee_City__c, CreatedById, CreatedDate, Account_Number__c, electric_SA_ID__c, Gas_SA_ID__c, Customer_Name__c, IsDeleted, Primary_Contact_Email__c, Primary_Contact_First_Name__c, Title__c, LastModifiedById, LastModifiedDate, Primary_Contact_Last_Name__c, Last_Active_Tab__c, Name, Payee_Name__c, Primary_Contact_Phone__c, Customer_Address1__c, Customer_Address2__c, Customer_City__c, Customer_State__c, Customer_Zip__c, Payee_Type__c, Id, Service_Type_Code__c, Site_Record_ID__c, Payee_State__c, Status__c, SystemModstamp, TradePro_Location__c, Payee_Zip__c ,recordtypeid, mailing_locations__c FROM Rebate_Application__c where id = :reb_app.id];
+                pageRef1.getParameters().put('id',reb_app.id);
+                //Rebate_Application__c reb_app = new Rebate_Application__c();      
+                ApexPages.StandardController controller1 = new ApexPages.StandardController(reb_app); 
+                TPA_Rebate_Landing_Controller reb_land = new TPA_Rebate_Landing_Controller(controller1); 
+                string newpg = reb_land.redirect().geturl();
+                system.assertequals('/apex/TPA_RebateApp?id=' +  reb_app.id, newpg);
+                reb_app.status__c = 'Submitted';
+                upsert reb_app; 
+                pageRef2.getParameters().put('id',reb_app.id);
+                //Rebate_Application__c reb_app = new Rebate_Application__c();      
+                ApexPages.StandardController controller2 = new ApexPages.StandardController(reb_app); 
+                TPA_Rebate_Landing_Controller reb_land1 = new TPA_Rebate_Landing_Controller(controller1); 
+                string newpg1 = reb_land1.redirect().geturl();
+                system.assertequals('/apex/TPA_RebateAppSummary?id=' +  reb_app.id, newpg1);
+         
+                                
+                //system.assert(newpg.contains('/apex/tpa_rebateapp')); 
+                
+         }
+    }
+
+     private static testmethod void Test_Validate_RebateMeasure_tab3() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1 
+               reb_app_ext.sa_id = tpa_data.site[0].eo3__Electric_SAID_Code__c;
+               reb_app_ext.account_number = tpa_data.site[0].Billing_Account_ID__c;
+               reb_app_ext.certify1 = True;
+               
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.reb_app.Payee_Type__c = 'Trade Professional';
+               reb_app_ext.onChangePayee();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+               system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,tpa_data.tl.mailing_address__c);
+                 
+               reb_app.Building_Type__c = 'CNC - Health/Medical - Clinic';
+               reb_app.Vintage__c  = '75';
+//               reb_app.Building_Square_Feet__c = '1000';
+               reb_app.Property_Occupied_By__c = 'Owner';
+               reb_app.Primary_Contact_First_Name__c = 'James';
+               reb_app.Primary_Contact_Last_Name__c = 'Bond';
+               reb_app.Primary_Contact_Phone__c = '0079878273';   
+               reb_app.Primary_Contact_Email__c = 'test@testmail.com';
+               reb_app_ext.saveRebate();  
+               system.assertequals(ApexPages.getMessages().size() ,0);
+               system.assert(reb_app_ext.reb_app.id != null);
+              // reb_app_ext.reb_app.Certify_Payment_Release__c = true;
+              // reb_app_ext.continueToTab3();
+                reb_app_ext.SaveRebateMeasure(); 
+                msgs = ApexPages.getMessages(); 
+                boolean m1 = false,m2 = false,m3 = false,m4 = false,m5 = false,m6 = false,m7 = false,m8 = false;
+                for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('You must enter a value for Rebate Code')) {
+                    m1 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Manufacturer')) {
+                    m2 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Model#')) {
+                    m3 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Purchase Date')) {
+                    m4 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Date Installed')) {
+                    m5 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Installed By')) {
+                    m6 = true;
+                 }
+                 if (msg.getdetail().contains('You must enter a value for Qty')) {
+                    m7 = true;
+                 }
+
+                 
+                }
+                system.assertequals(m1,true);
+                system.assertequals(m2,true);
+                system.assertequals(m3,true);
+                system.assertequals(m4,true);
+                system.assertequals(m5,true);
+                system.assertequals(m6,true);                                                                                
+                system.assertequals(m7,true); 
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 1234567; 
+                reb_app_ext.SaveRebateMeasure(); 
+                msgs = ApexPages.getMessages(); 
+                m1 = false;
+                for(ApexPages.Message msg : msgs) {
+                 if (msg.getdetail().contains('Quantity must be numeric and should not be more than 6 digits.')) {
+                    m1 = true;
+                 }
+                } 
+                system.assertequals(m1,true);                
+                
+         }
+    }
+   
+    private static testmethod void Test_RebateAttachment_tab3() {
+       List<Apexpages.Message> msgs;      
+       TPA_Testclass_Data tpa_data = new TPA_Testclass_Data();
+       system.runas(tpa_data.user1) { 
+
+           Pagereference pageRef = Page.TPA_RebateApp;    
+           Test.setCurrentPage(pageRef);
+           Rebate_Application__c reb_app = new Rebate_Application__c();      
+           apexPages.StandardController controller = new ApexPages.StandardController(reb_app); 
+           TPA_RebateAppController reb_app_ext = new TPA_RebateAppController(controller);  
+           //Test inputs on tab1 
+               reb_app_ext.sa_id = tpa_data.site[0].eo3__Electric_SAID_Code__c;
+               reb_app_ext.account_number = tpa_data.site[0].Billing_Account_ID__c;
+               reb_app_ext.certify1 = True;
+               
+               reb_app_ext.ValidateSA_AccountID_Inputs();
+               reb_app.tradepro_location__c = tpa_data.tl.id;
+               reb_app_ext.reb_app.Payee_Type__c = 'Customer';
+               reb_app_ext.onChangePayee();
+               system.assert(reb_app_ext.reb_app.Payee_Address_1__c!=null);
+              // system.assertequals(reb_app_ext.reb_app.Payee_Address_1__c ,tpa_data.tl.mailing_address__c);
+                 
+               reb_app.Building_Type__c = 'CNC - Health/Medical - Clinic';
+               reb_app.Vintage__c  = '75';
+              // reb_app.Building_Square_Feet__c = '1000';
+               reb_app.Property_Occupied_By__c = 'Owner';
+               reb_app.Primary_Contact_First_Name__c = 'James';
+               reb_app.Primary_Contact_Last_Name__c = 'Bond';
+               reb_app.Primary_Contact_Phone__c = '0079878273'; 
+               reb_app.Primary_Contact_Email__c = 'test@testmail.com';
+               Reb_app.last_active_tab__c = 4;
+               reb_app.Status__c = 'New';            
+               reb_app_ext.saveRebate();  
+               system.assertequals(ApexPages.getMessages().size() ,0);
+               system.assert(reb_app_ext.reb_app.id != null);
+       //        pagereference pg = reb_app_ext.continuetoTab3();
+       //        Test.setCurrentPage(pg);
+               
+               
+               
+               reb_app_ext.initialize_attachments();
+               system.assert(reb_app_ext.newAttachment.description == null);
+               system.assert(reb_app_ext.newAttachment.name == null);
+               reb_app_ext.newAttachment.description = '';
+               reb_app_ext.newAttachment.name = '';
+               reb_app_ext.newattachment.parentid = reb_app_ext.reb_app.id;
+               
+               //reb_app_ext.SubmitRebate();
+               //removed
+               
+               //reb_app_ext.validateAttachment();
+              // reb_app_ext.newattachment = new Attachment();
+              // reb_app_ext.newattachment.parentid = reb_app_ext.reb_app.id;
+               /************* Test 1 ***************************/
+               boolean m1 = false,m2 = false,m3 = false,m4 = false,m5 = false,m6 = false,m7 = false,m8 = false;
+               reb_app_ext.saveAttachment();
+               msgs = ApexPages.getMessages(); 
+               system.debug(' Attachment msgs1 : ' + msgs);  
+               for(ApexPages.Message msg : msgs) {
+               if (msg.getdetail().contains('You must select a file and enter a description.')) {
+                    m1 = true;
+                 }
+                }
+               system.assert(m1);
+               /************* Test 2 ***************************/               
+               reb_app_ext.newAttachment.description = 'Testfile1';
+               reb_app_ext.newAttachment.name = null;
+                m1 = false;
+               reb_app_ext.saveAttachment();
+               msgs = ApexPages.getMessages(); 
+               system.debug(' Attachment msgs2 : ' + msgs);  
+               for(ApexPages.Message msg : msgs) {
+               if (msg.getdetail().contains('You must select a file and enter a description.')) {
+                    m1 = true;
+                 }
+                }
+               system.assert(m1);                
+               /************* Test 3 ***************************/
+               reb_app_ext.newAttachment.description = 'Testfile1';
+               reb_app_ext.newAttachment.name = 'Testfile1.exe';
+                m1 = false;
+               reb_app_ext.saveAttachment();
+               msgs = ApexPages.getMessages(); 
+               system.debug(' Attachment msgs2 : ' + msgs);  
+               for(ApexPages.Message msg : msgs) {
+               if (msg.getdetail().contains('Only the following file types are accepted to upload:')) {
+                    m1 = true;
+                 }
+                }
+               system.assert(m1); 
+               system.assert(reb_app_ext.newAttachment.name != NULL);               
+               /************* Test 4 ***************************/
+               reb_app_ext.newAttachment.description = 'Testfile1';
+               reb_app_ext.newAttachment.name = 'Testfile1.jpg';
+               Blob bodyBlob=Blob.valueOf('Unit Test Attachment Body'); 
+               reb_app_ext.newAttachment.body = bodyBlob;
+               reb_app_ext.newattachment.parentid = reb_app_ext.reb_app.id;
+                m1 = false;
+               reb_app_ext.saveAttachment();
+               system.assert(reb_app_ext.newAttachment.name == NULL); 
+               system.assert(reb_app_ext.attacheddocs.size() == 1);
+
+               /************* Test 5 ***************************/
+               reb_app_ext.selectedRecordid = reb_app_ext.attacheddocs[0].id;
+               reb_app_ext.attachmentUpdateMode = 'EDIT';
+               reb_app_ext.editAttachment();
+               reb_app_ext.newAttachment.description = 'Testfile1 - modified';
+               reb_app_ext.saveAttachment();
+               system.assert(reb_app_ext.newAttachment.name == NULL); 
+               system.assert(reb_app_ext.attacheddocs.size() == 1);
+               system.assert(reb_app_ext.attacheddocs[0].description == 'Testfile1 - modified');
+  
+               /************* Test 6 ***************************/
+               reb_app_ext.selectedRecordid = reb_app_ext.attacheddocs[0].id;
+               reb_app_ext.deleteAttachment();
+               system.assert(reb_app_ext.attacheddocs.size() == 0);
+
+               /************* Test 7 ***************************/
+               reb_app_ext.continuetoTab5();
+               m1 = false;
+               msgs = ApexPages.getMessages(); 
+               system.debug(' Attachment msgs2 : ' + msgs);  
+               for(ApexPages.Message msg : msgs) {
+               if (msg.getdetail().contains('You must upload at least one file in order to proceed.')) {
+                    m1 = true;
+                 }
+                } 
+                system.assert(m1);            
+               
+               /************* Test 8 ***************************/
+               reb_app_ext.newAttachment.description = 'Testfile1';
+               reb_app_ext.newAttachment.name = 'Testfile1.jpg';
+               bodyBlob=Blob.valueOf('Unit Test Attachment Body'); 
+               reb_app_ext.newAttachment.body = bodyBlob;
+               reb_app_ext.newattachment.parentid = reb_app_ext.reb_app.id;
+               reb_app_ext.reb_app.CertifyAttachment__c= true;
+                m1 = false;
+               reb_app_ext.saveAttachment();
+               system.assert(reb_app_ext.newAttachment.name == NULL); 
+               system.assert(reb_app_ext.attacheddocs.size() == 1);
+               reb_app_ext.continuetoTab5();
+               system.assert(reb_app.last_active_tab__c == 5);
+
+                 
+                /********* Rebate Summmary Test Code *********/                
+                TPA_RebateSummary rebSumry = new TPA_RebateSummary();
+                rebSumry.sObjid = reb_app_ext.reb_app.Id;
+                rebSumry.getRebApp();
+                 
+                 
+                 /********** Added By Nalini ***********/
+                 Pagereference pageRef11 = Page.TPA_RebateApp;    
+                 Test.setCurrentPage(pageRef11);
+                 System.Debug('$$$$$$$$$$ '+reb_app_ext.reb_app.Id);                 
+                 pageRef11.getParameters().put('setactivetab','5');    
+                 apexPages.StandardController controller11 = new ApexPages.StandardController(reb_app_ext.reb_app); 
+                 TPA_RebateAppController reb_app_extt = new TPA_RebateAppController(controller11); 
+                 System.Debug('$$$$$$$$$$ '+reb_app_extt.activeParam);
+                 reb_app_extt.summaryTab1();
+                 reb_app_extt.summaryTab2();
+                 reb_app_extt.summaryTab3();
+                 reb_app_extt.summaryTab4();
+                 reb_app_extt.backtoTab1();
+                 reb_app_extt.backtoTab2();
+                 reb_app_extt.backtoTab3();
+                 reb_app_extt.backtoTab4();
+                 /*****************************/
+                 
+                 
+                 tpa_data.site[0].Service_Status_Code__c = '10';
+                reb_app_ext.Reb_App_Measure.Manufacturer__c = 'm123';
+                reb_app_ext.Reb_App_Measure.Model_Number__c = 'mo123';                                   
+                reb_app_ext.Reb_App_Measure.Purchase_Date__c  = system.today();                                   
+                reb_app_ext.Reb_App_Measure.Installed_by__c  = 'Customer';  
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 2;
+                reb_app_ext.Reb_App_Measure.Invoice_Number__c = '1501';
+                reb_app_ext.Reb_App_Measure.Purchase_Price__C = 50.0;
+                reb_app_ext.Reb_App_Measure.Measure_Type__c = 'HVAC';
+                reb_app_ext.measurecode = 'A10';
+                reb_app_ext.Reb_App_Measure.Rebate_Code__c = 'A10'; 
+                date submitdate = date.newInstance(2024, 7, 1);
+                reb_app_ext.Reb_App_Measure.Date_Installed__c  = submitdate;
+                reb_app_ext.SaveRebateMeasure(); 
+                reb_app_ext.SubmitRebate();
+               reb_app_ext.selectedRecordid = reb_app_ext.Rebate_Measures[0].Id;
+               reb_app_ext.DeleteMeasure();
+                    
+               reb_app_ext.Reb_App_Measure.Manufacturer__c = 'm123';
+                reb_app_ext.Reb_App_Measure.Model_Number__c = 'mo123';                                   
+                reb_app_ext.Reb_App_Measure.Purchase_Date__c  = system.today().addDays(-3);                                   
+                reb_app_ext.Reb_App_Measure.Installed_by__c  = 'Customer';  
+                reb_app_ext.Reb_App_Measure.Quantity__c  = 2;
+                reb_app_ext.Reb_App_Measure.Invoice_Number__c = '1501';
+                reb_app_ext.Reb_App_Measure.Purchase_Price__C = 50.0;
+                reb_app_ext.Reb_App_Measure.Measure_Type__c = 'HVAC';
+                reb_app_ext.measurecode = 'A10';
+                reb_app_ext.Reb_App_Measure.Rebate_Code__c = 'A10';
+                reb_app_ext.Reb_App_Measure.Date_Installed__c  = system.today().addDays(-3);
+               reb_app_ext.SaveRebateMeasure(); 
+                reb_app_ext.SubmitRebate();
+                reb_app_ext.Reb_app.Invalid_Data_Code__c  = '0';
+                reb_app_ext.SaveRebate();
+                reb_app_ext.SubmitRebate();
+         }
+    }       
+ private static testmethod void Test_TPM_Approval() {
+        
+        string TPM_Profileid = [select id from profile where name = 'TradePro Program Manager'].id;
+        string TPM_role = [select id from userrole where name = 'Energy Insight Data Czar'].id;
+        User TPM_User =  new user (
+            Username = System.now().millisecond() + 'test12345@test.com',
+            ProfileId = TPM_Profileid,
+            UserRoleId= TPM_role,
+            Alias = 'TPA123',
+            Email = 'tpm@test.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = 'TP',
+            CommunityNickname = 'TPA123',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            LanguageLocaleKey = 'en_US'           
+        );
+       string enrolledprofileid , userprofileid;
+            System.runas(TPM_User) {
+              TPA_Testclass_Data  TPA_data = new TPA_Testclass_Data ();
+              TPA_data.enrollmentrecord.status__c = 'Approved';
+              test.starttest();
+              update TPA_data.enrollmentrecord;
+              test.stoptest();
+              enrolledprofileid = [select id  from profile where name = 'TradePro Community Enrolled User'].id;
+              userprofileid = [select profileid from user where id =  :TPA_data.enrollmentrecord.ownerid].profileid;
+              //userprofileid = tpa_data.user1.profileid;
+              system.debug ( ' ***  enrolledprofiled :' + enrolledprofileid  +  ' userprofileid : ' + userprofileid);  
+              system.assertequals(enrolledprofileid ,userprofileid );
+              
+              
+            }
+       
+    } 
+   private static testmethod void Test_TPM_Denial() {
+        
+        string TPM_Profileid = [select id from profile where name = 'TradePro Program Manager'].id;
+        string TPM_role = [select id from userrole where name = 'Energy Insight Data Czar'].id;
+        User TPM_User =  new user (
+            Username = System.now().millisecond() + 'test12345@test.com',
+            ProfileId = TPM_Profileid,
+            UserRoleId= TPM_role,
+            Alias = 'TPA123',
+            Email = 'tpm@test.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = 'TP',
+            CommunityNickname = 'TPA123',
+            TimeZoneSidKey = 'America/Los_Angeles',
+            LocaleSidKey = 'en_US',
+            LanguageLocaleKey = 'en_US'           
+        );
+       boolean useractiveflag;
+            System.runas(TPM_User) {
+              TPA_Testclass_Data  TPA_data = new TPA_Testclass_Data ();
+            
+              TPA_data.enrollmentrecord.status__c = 'Denied';
+              test.starttest();
+              update TPA_data.enrollmentrecord;
+              test.stoptest();
+              
+              useractiveflag = [select isactive from user where id =  :TPA_data.enrollmentrecord.ownerid].isactive;              
+              system.asserT(useractiveflag == FALSE);
+            }       
+    }     
+    
+  /* This is TPA_Landing_Controller */
+   public static testmethod void  Test_UnenrolledInprogressLandingPage() {
+        
+        TradeProAlliance__c tp = TradeProAlliance__c.getValues('TradeProHoldingAccountName');
+        string tpaccountname = tp.value__C;
+
+        string tpaccountid = [Select id from Account where name = :tpaccountname].id; 
+       // string sysadminprofile= [Select id from profile where name = 'System Administrator'].id; 
+        Contact contact1;
+     //create testcontact for the portal user 
+  
+       contact1 = new Contact(
+            FirstName = 'Test1',
+            Lastname = 'Venkat1',
+            AccountId = tpaccountid ,
+            Email = System.now().millisecond() + 'test@test.com'
+       );
+       
+        Database.insert(contact1);
+ 
+   //Get TP unenrolled profile id
+        tp = TradeProAlliance__c.getValues('TradeProCommUnenrolledUserProfileName');
+        string tpprofilename = tp.value__C;   
+        string tpprofileid = [Select id from profile where name = :tpprofilename].id;        
+        user  user1 = new User(
+              Username = System.now().millisecond() + 'test12345@test.com',
+              ContactId = contact1.Id,
+              ProfileId = tpprofileid,
+              Alias = 'test123',
+              Email = 'test12345@test.com',
+              EmailEncodingKey = 'UTF-8',
+              LastName = 'Venkat1',
+              firstname = 'Test1',
+              CommunityNickname = 'test12345',
+              TimeZoneSidKey = 'America/Los_Angeles',
+              LocaleSidKey = 'en_US',
+              LanguageLocaleKey = 'en_US'
+           ); 
+           insert user1; 
+           
+          System.runas(user1) {
+                  Pagereference pageRef = Page.TPA_Landing_Page;  
+                  Test.setCurrentPage(pageRef);
+                  TPA_Landing_Controller tpa_land = new TPA_Landing_Controller();
+                   string pg = tpa_land.redirect().geturl();  
+                  System.assertEquals('/apex/tpa_enrollment_check', pg );
+          }
+          
+          
+          System.runas(user1) {
+          
+                    Account_enrollment__c enrollmentrecord = new Account_enrollment__c(
+                    name = 'venkat and compnay',
+                    ownerid = user1.id,
+                    Additional_Company_Name_1__c = 'AdditionalCompanyname1',
+                    Additional_Company_Name_2__c = 'AdditionalCompanyname2',
+                    Additional_Company_Name_3__c = 'AdditionalCompanyname3',
+                    Additional_Tax_id_1__c = '0918177299',
+                    Additional_Tax_id_2__c = '0918177299',
+                    Additional_Tax_id_3__c = '0918177299',
+                    Approver_Comments__c = 'Additionalcomments',
+                    //Approver_id__c = 
+                    //Approver_Status_Date__c
+                    //Approver_Type__c
+                    California_Business_License__c = '12345',
+                    California_Contractors_License__c = '1234',
+                    Certifications__c = 's',
+                    terms_conditions_checked__c = true,
+                    Mailing_City__c = 'mailingcity',
+                    Company_Name__c = 'companyname',
+                    Company_Website__c = 'http://test.salesforce.com',
+                    Counties_Served__c ='Alameda',
+                    Customer_Name__c = 'Venkat and Company',
+                    email_address__c = 'test@pge.com',
+                    EmailAddressToUseForDenied__c = 'vjm6@pge.com',
+                    //Email_Sent_Date__c 
+                    //Enrollment_Status__c
+                    Fax_Number__c = '0123456789',
+                    TIN__c = '823787465',
+                    Industries_work_in__c = 'abc',
+                    California_Business_License_expiration_d__c = system.today(),
+                    Mailing_Address__c = 'mailingaddress1',
+                    TP_Compliance_Date2__c = system.today(),
+                    //ownercontactid__c 
+                    Telephone__c = '0123456789',
+                    Telephone_ext__c = '123',
+                    Primary_Owner_First_Name__c = 'venkat',
+                    Primary_Owner_Last_Name__c = 'manick',
+                    Primary_Owner_Title__c ='developer',
+                    //region__c 
+                    //SendApprovedEmail__c = 
+                   // SendDeniedEmail__c = 
+                   // SSN__c
+                    Mailing_State__c = 'ca',
+                    Status__c = 'In Progress',
+                    //Status_color__c = 
+                    Tax_id__c = '989785645',
+                    Tax_ID_Status__c = 'Corporation',
+                    Technologies_Served__c = 'Salesforce',
+                    terms_conditions_checked_date__c = system.today(),
+                    TP_Compliance_Date1__c = system.today(),
+                    TP_OBF_Interested__c = true,
+                    Mailing_Zip__c = '94583'
+               );       
+                  insert enrollmentrecord ;
+                  Pagereference pageRef = Page.TPA_Landing_Page;  
+                  Test.setCurrentPage(pageRef);
+                  TPA_Landing_Controller tpa_land = new TPA_Landing_Controller();
+                   string pg = tpa_land.redirect().geturl();  
+                  System.assertEquals('/apex/TPA_Enrollment_ViewOnly_TPA?id=' + enrollmentrecord .id + '&status=I', pg );                  
+                          
+          
+          }  
+          
+             
+     }    
+
+    public static testmethod void  Test_UnenrolledPendingReviewLandingPage() {
+        
+        TradeProAlliance__c tp = TradeProAlliance__c.getValues('TradeProHoldingAccountName');
+        string tpaccountname = tp.value__C;
+
+        string tpaccountid = [Select id from Account where name = :tpaccountname].id; 
+       // string sysadminprofile= [Select id from profile where name = 'System Administrator'].id; 
+        Contact contact1;
+     //create testcontact for the portal user 
+  
+       contact1 = new Contact(
+            FirstName = 'Test1',
+            Lastname = 'Venkat1',
+            AccountId = tpaccountid ,
+            Email = System.now().millisecond() + 'test@test.com'
+       );
+       
+        Database.insert(contact1);
+ 
+   //Get TP unenrolled profile id
+        tp = TradeProAlliance__c.getValues('TradeProCommUnenrolledUserProfileName');
+        string tpprofilename = tp.value__C;   
+        string tpprofileid = [Select id from profile where name = :tpprofilename].id;        
+        user  user1 = new User(
+              Username = System.now().millisecond() + 'test12345@test.com',
+              ContactId = contact1.Id,
+              ProfileId = tpprofileid,
+              Alias = 'test123',
+              Email = 'test12345@test.com',
+              EmailEncodingKey = 'UTF-8',
+              LastName = 'Venkat1',
+              firstname = 'Test1',
+              CommunityNickname = 'test12345',
+              TimeZoneSidKey = 'America/Los_Angeles',
+              LocaleSidKey = 'en_US',
+              LanguageLocaleKey = 'en_US'
+           ); 
+           insert user1; 
+          System.runas(user1) {
+          
+                    Account_enrollment__c enrollmentrecord = new Account_enrollment__c(
+                    name = 'venkat and compnay',
+                    ownerid = user1.id,
+                    Additional_Company_Name_1__c = 'AdditionalCompanyname1',
+                    Additional_Company_Name_2__c = 'AdditionalCompanyname2',
+                    Additional_Company_Name_3__c = 'AdditionalCompanyname3',
+                    Additional_Tax_id_1__c = '0918177299',
+                    Additional_Tax_id_2__c = '0918177299',
+                    Additional_Tax_id_3__c = '0918177299',
+                    Approver_Comments__c = 'Additionalcomments',
+                    //Approver_id__c = 
+                    //Approver_Status_Date__c
+                    //Approver_Type__c
+                    California_Business_License__c = '12345',
+                    California_Contractors_License__c = '1234',
+                    Certifications__c = 's',
+                    terms_conditions_checked__c = true,
+                    Mailing_City__c = 'mailingcity',
+                    Company_Name__c = 'companyname',
+                    Company_Website__c = 'http://test.salesforce.com',
+                    Counties_Served__c ='Alameda',
+                    Customer_Name__c = 'Venkat and Company',
+                    email_address__c = 'test@pge.com',
+                    EmailAddressToUseForDenied__c = 'vjm6@pge.com',
+                    //Email_Sent_Date__c 
+                    //Enrollment_Status__c
+                    Fax_Number__c = '0123456789',
+                    TIN__c = '823787465',
+                    Industries_work_in__c = 'abc',
+                    California_Business_License_expiration_d__c = system.today(),
+                    Mailing_Address__c = 'mailingaddress1',
+                    TP_Compliance_Date2__c = system.today(),
+                    //ownercontactid__c 
+                    Telephone__c = '0123456789',
+                    Telephone_ext__c = '123',
+                    Primary_Owner_First_Name__c = 'venkat',
+                    Primary_Owner_Last_Name__c = 'manick',
+                    Primary_Owner_Title__c ='developer',
+                    //region__c 
+                    //SendApprovedEmail__c = 
+                   // SendDeniedEmail__c = 
+                   // SSN__c
+                    Mailing_State__c = 'ca',
+                    Status__c = 'Pending Review',
+                    //Status_color__c = 
+                    Tax_id__c = '989785645',
+                    Tax_ID_Status__c = 'Corporation',
+                    Technologies_Served__c = 'Salesforce',
+                    terms_conditions_checked_date__c = system.today(),
+                    TP_Compliance_Date1__c = system.today(),
+                    TP_OBF_Interested__c = true,
+                    Mailing_Zip__c = '94583'
+               );       
+                  insert enrollmentrecord ;
+                  Pagereference pageRef = Page.TPA_Landing_Page;  
+                  Test.setCurrentPage(pageRef);
+                  TPA_Landing_Controller tpa_land = new TPA_Landing_Controller();
+                   string pg = tpa_land.redirect().geturl();  
+                  System.assertEquals('/apex/TPA_Enrollment_ViewOnly_TPA?id=' + enrollmentrecord .id + '&status=P', pg );                  
+                          
+          
+          }  
+          
+             
+     }        
+     public static testmethod void  Test_enrolledApprovedReviewLandingPage() {
+        
+        TradeProAlliance__c tp = TradeProAlliance__c.getValues('TradeProHoldingAccountName');
+        string tpaccountname = tp.value__C;
+
+        string tpaccountid = [Select id from Account where name = :tpaccountname].id; 
+       // string sysadminprofile= [Select id from profile where name = 'System Administrator'].id; 
+        Contact contact1;
+     //create testcontact for the portal user 
+  
+       contact1 = new Contact(
+            FirstName = 'Test1',
+            Lastname = 'Venkat1',
+            AccountId = tpaccountid ,
+            Email = System.now().millisecond() + 'test@test.com'
+       );
+       
+        Database.insert(contact1);
+ 
+   //Get TP unenrolled profile id
+        tp = TradeProAlliance__c.getValues('TradeProCommEnrolledUserProfileName');
+        string tpprofilename = tp.value__C;   
+        string tpprofileid = [Select id from profile where name = :tpprofilename].id;        
+        user  user1 = new User(
+              Username = System.now().millisecond() + 'test12345@test.com',
+              ContactId = contact1.Id,
+              ProfileId = tpprofileid,
+              Alias = 'test123',
+              Email = 'test12345@test.com',
+              EmailEncodingKey = 'UTF-8',
+              LastName = 'Venkat1',
+              firstname = 'Test1',
+              CommunityNickname = 'test12345',
+              TimeZoneSidKey = 'America/Los_Angeles',
+              LocaleSidKey = 'en_US',
+              LanguageLocaleKey = 'en_US'
+           ); 
+           insert user1; 
+          System.runas(user1) {
+          
+                    Account_enrollment__c enrollmentrecord = new Account_enrollment__c(
+                    name = 'venkat and compnay',
+                    ownerid = user1.id,
+                    Additional_Company_Name_1__c = 'AdditionalCompanyname1',
+                    Additional_Company_Name_2__c = 'AdditionalCompanyname2',
+                    Additional_Company_Name_3__c = 'AdditionalCompanyname3',
+                    Additional_Tax_id_1__c = '0918177299',
+                    Additional_Tax_id_2__c = '0918177299',
+                    Additional_Tax_id_3__c = '0918177299',
+                    Approver_Comments__c = 'Additionalcomments',
+                    //Approver_id__c = 
+                    //Approver_Status_Date__c
+                    //Approver_Type__c
+                    California_Business_License__c = '12345',
+                    California_Contractors_License__c = '1234',
+                    Certifications__c = 's',
+                    terms_conditions_checked__c = true,
+                    Mailing_City__c = 'mailingcity',
+                    Company_Name__c = 'companyname',
+                    Company_Website__c = 'http://test.salesforce.com',
+                    Counties_Served__c ='Alameda',
+                    Customer_Name__c = 'Venkat and Company',
+                    email_address__c = 'test@pge.com',
+                    EmailAddressToUseForDenied__c = 'vjm6@pge.com',
+                    //Email_Sent_Date__c 
+                    //Enrollment_Status__c
+                    Fax_Number__c = '0123456789',
+                    TIN__c = '823787465',
+                    Industries_Work_In__c = 'Agriculture',
+                    //Industries_work_in__c = 'abc',
+                    California_Business_License_expiration_d__c = system.today(),
+                    Mailing_Address__c = 'mailingaddress1',
+                    TP_Compliance_Date2__c = system.today(),
+                    //ownercontactid__c 
+                    Telephone__c = '0123456789',
+                    Telephone_ext__c = '123',
+                    Primary_Owner_First_Name__c = 'venkat',
+                    Primary_Owner_Last_Name__c = 'manick',
+                    Primary_Owner_Title__c ='developer',
+                    //region__c 
+                    //SendApprovedEmail__c = 
+                   // SendDeniedEmail__c = 
+                   // SSN__c
+                    Mailing_State__c = 'ca',
+                    Status__c = 'Approved',
+                    //Status_color__c = 
+                    Tax_id__c = '989785645',
+                    Tax_ID_Status__c = 'Corporation',
+                    Technologies_Served__c = 'Salesforce',
+                    terms_conditions_checked_date__c = system.today(),
+                    TP_Compliance_Date1__c = system.today(),
+                    TP_OBF_Interested__c = true,
+                    Mailing_Zip__c = '94583'
+               );       
+                  insert enrollmentrecord ;
+                  Pagereference pageRef = Page.TPA_Landing_Page;  
+                  Test.setCurrentPage(pageRef);
+                  TPA_Landing_Controller tpa_land = new TPA_Landing_Controller();
+                   string pg = tpa_land.redirect().geturl();  
+                  System.assertEquals('/apex/tpa_enrolledhomepage', pg );                  
+                          
+          
+          }  
+            
+     }    
+     
+/* This is for Account Enrollment approval for second user */
+ Private Static testmethod void TPA_AccountEnrollmentApprovalCron()
+    {
+      /*  Account aObj = new Account();
+        aObj.Name = 'TradePro Holding Account';
+        aObj.RecordTypeId = Schema.SObjectType.Account.getRecordTypeInfosByName().get('TradePro Alliance').getRecordTypeId(); //id of the record type Tradepro Alliance
+        Insert aObj;*/
+          TradeProAlliance__c tp = TradeProAlliance__c.getValues('TradeProHoldingAccountName');
+         string tpaccountname = tp.value__C;
+        Account aObj = [Select id from Account where name = :tpaccountname limit 1];
+        
+        List<Contact> conList = new List<Contact>();
+        Contact cObj = new Contact();
+        cObj.LastName = 'Test Partner Contact';
+        cObj.AccountId = aObj.Id;
+        cObj.Approver_Type__c = 'TPA';
+        cObj.Approval_Status__c = 'Approval Queue';
+        conList.add(cObj);
+        
+        Contact cObj1 = new Contact();
+        cObj1.LastName = 'Test Partner Contact';
+        cObj1.AccountId = aObj.Id;
+        cObj1.Approver_Type__c = 'TPA';
+        cObj1.Approval_Status__c = 'Denial Queue';
+        conList.add(cObj1);
+        
+        insert conList;
+        
+    /*  TradeProAlliance__c tpa = new TradeProAlliance__c();
+        tpa.Name = 'TradeProCommEnrolledUserProfileName';
+        tpa.Value__c = 'TradePro Community Enrolled User';
+        insert tpa;
+        
+        TradeProAlliance__c tpa1 = new TradeProAlliance__c();
+        tpa1.Name = 'TradeProHoldingAccountName';
+        tpa1.Value__c = 'TradePro Holding Account';
+        insert tpa1;*/
+        
+        String profileID = [Select Id from Profile where Name = 'TradePro Community Unenrolled User'].Id;
+        User loginUser = [Select Id, Name from User where id=: USerInfo.getUserId()];
+        List<User> userList = new List<User>();
+        System.runAs(loginUser )
+        {
+            User TPM_User =  new user (
+                Username = System.now().millisecond() + 'test12345@testtpmuser.com',
+                ProfileId = profileId,
+                contactId = conList[0].Id,
+                //UserRoleId= TPM_role,
+                Alias = 'TPA123',
+                Email = 'tpm@testtpmuser.com',
+                EmailEncodingKey = 'UTF-8',
+                LastName = 'TP',
+                CommunityNickname = 'TPA123',
+                TimeZoneSidKey = 'America/Los_Angeles',
+                LocaleSidKey = 'en_US',
+                LanguageLocaleKey = 'en_US'           
+            );
+            
+            User TPM_User1 =  new user (
+                Username = System.now().millisecond() + 'test123456@testtpmuser1.com',
+                ProfileId = profileId,
+                contactId = conList[1].Id,
+                //UserRoleId= TPM_role,
+                Alias = 'TPA123',
+                Email = 'tpm@testtpmuser1.com',
+                EmailEncodingKey = 'UTF-8',
+                LastName = 'TP',
+                CommunityNickname = 'TPA12345',
+                TimeZoneSidKey = 'America/Los_Angeles',
+                LocaleSidKey = 'en_US',
+                LanguageLocaleKey = 'en_US'           
+            );
+            userList.add(TPM_User);
+            userList.add(TPM_User1);
+            
+            insert userList;
+        }
+        // Setting Primary User to Approve to Denial
+        User TPM_User2 =  new user();
+        System.runAs(loginUser)
+        {
+            string TPM_Profileid = [select id from profile where name = 'TradePro Program Manager'].id;
+            string TPM_role = [select id from userrole where name = 'Energy Insight Data Czar'].id;
+             
+                TPM_User2.Username = System.now().millisecond() + 'test123457847@testtpmuser2.com';
+                TPM_User2.ProfileId = TPM_Profileid;
+                TPM_User2.UserRoleId= TPM_role;
+                TPM_User2.Alias = 'TPA12354';
+                TPM_User2.Email = 'tpm@testtpmuser2.com';
+                TPM_User2.EmailEncodingKey = 'UTF-8';
+                TPM_User2.LastName = 'TP';
+                TPM_User2.CommunityNickname = 'TPA12354548';
+                TPM_User2.TimeZoneSidKey = 'America/Los_Angeles';
+                TPM_User2.LocaleSidKey = 'en_US';
+                TPM_User2.LanguageLocaleKey = 'en_US';           
+                insert TPM_User2;
+        }
+        User appUser;
+        System.runAs(TPM_User2)
+        {
+            Test.StartTest();
+            Database.ExecuteBatch(new TPA_AccountEnrollmentApprovalCron());
+            Test.StopTest();          
+            
+            
+            String uProfileID = [Select Id from Profile where name = 'TradePro Community Enrolled User'].Id;
+            appUser = [Select Id, ProfileID from User where id =: userList[0].Id];
+            System.AssertEquals(appUser.ProfileId, uProfileID);
+            
+            System.AssertEquals(userList[1].isActive, false);
+            
+            
+            Contact appContact = [Select Id, Approval_Status__C from Contact where id =: conList[0].Id];
+            //System.AssertEquals(appContact.Approval_status__c, 'Approved');
+            Contact denContact = [Select Id, Approval_Status__C from Contact where id =: conList[1].Id];
+           // System.AssertEquals(denContact.Approval_status__c, 'Denied');
+            
+        }
+        System.runAs(appUser)
+        {
+            TradePro_Location__c loc = new TradePro_Location__c(Account__c = aObj.Id, Name = 'Test Location name Los Angles');
+            insert loc;
+            
+            delete loc;
+        }
+    }
+      // --------------------------------------------------------------------------------------------------------------------
+    /**
+     * @Description Method is test method to test inactivate functionality.
+     * Test Method for Inactivate. -- Story 235. 
+     **/
+    static testmethod void Inactivation2ndUserTest() {
+         
+        //Create Account  
+        Account a = TPA_UnitTestHelper.createAccount();
+        /**   
+        Account a = new Account();
+        a.Name = 'A Account';
+        a.RecordTypeId = Schema.SObjectType.Account.getRecordTypeInfosByName().get('TradePro Alliance').getRecordTypeId(); //id of the record type Tradepro Alliance
+        Insert a;
+        */
+        
+        //create list of contacts
+        List<Contact> conList = new List<Contact>();
+        
+        Contact c1 = new Contact();
+        c1.LastName = 'Contact 1';
+        c1.AccountId = a.Id;
+        c1.Approver_Type__c = 'TPA';
+        c1.Approval_Status__c = 'Approval Queue';
+        conList.add(c1);
+        
+        Contact c3 = new Contact();
+        c3.LastName = 'Contact 3';
+        c3.AccountId = a.Id;
+        c3.Approver_Type__c = 'TPA';
+        c3.Approval_Status__c = 'Deactivate Queue';
+        conList.add(c3);
+        
+        insert conList;
+        /*
+        TradeProAlliance__c tpa2 = new TradeProAlliance__c();
+        tpa2.Name = 'TradeProCommEnrolledUserProfileName';
+        tpa2.Value__c = 'TradePro Community Enrolled User';
+        insert tpa2;
+         */
+        String eProfileID = [Select Id from Profile where name = 'TradePro Community Enrolled User'].Id;       
+        
+        //create User with a enrolled profile with the contact just created
+        User user = TPA_UnitTestHelper.createUser(eProfileID, c1.id );
+        
+        //create an Account Enrollment record as this user
+        Account_enrollment__c accEnroll = TPA_UnitTestHelper.createAccountEnrollment(user.id);
+        a.Account_Enrollment__c = accEnroll.id;
+        update a;   
+        
+        //test class unique user issue - bxne 8/4/2015 making it unique
+        
+        String orgId = UserInfo.getOrganizationId();
+        String dateString = String.valueof(Datetime.now()).replace(' ','').replace(':','').replace('-','');
+        Integer randomInt = Integer.valueOf(math.rint(math.random()*1000000));
+        String uniqueName = orgId + dateString + randomInt;
+        
+        
+        //create user2
+        List<User> userList = new List<User>();
+        
+        User user3 =  new User (
+                                 //bxne added below and commented corresponding lines
+                                 email = uniqueName + '@test' + orgId + '.org',
+                                 Username = uniqueName + '@test' + orgId + '.org',
+                                 EmailEncodingKey = 'ISO-8859-1',
+                                 Alias = uniqueName.substring(18, 23),
+                            
+                                 //Username = System.now().millisecond() + 'test@test.com',
+                                 ProfileId = TPA_UnitTestHelper.enrolledUserProfileID,
+                                 contactId = c3.Id,
+                                 //alias = 'User3',
+                                 //email = System.now().millisecond()+'tpm@test.com',
+                                 //emailEncodingKey = 'UTF-8',
+                                 lastName = 'u3',
+                                 communityNickname = 'U3',
+                                 timeZoneSidKey = 'America/Los_Angeles',
+                                 localeSidKey = 'en_US',
+                                 languageLocaleKey = 'en_US' );
+        
+        userList.add(User3);
+        insert userList;
+        
+        System.runAs(user3)   {
+        
+            //list of locations
+            List<TradePro_Location__c> locList = new List<TradePro_Location__c>();
+            
+            TradePro_Location__c l1 = new TradePro_Location__c();
+            l1.Name = 'loc 1';
+            l1.Mailing_Address__c = 'Address loc 1';
+            l1.City__c = 'city loc 1';
+            l1.State__c = 'CA';
+            l1.Zip_Code__c = '98765';
+            l1.Contact_First_Name__c = 'Contact 3';
+            l1.Contact_Last_Name__c = 'Contact 3';
+            l1.Contact_Phone__c = '408234566';
+            l1.Technologies_Served__c = 'Agricultural Products';
+            l1.Industries_Worked__c = 'Agriculture';
+            l1.Counties_Served__c = 'Alameda';
+            l1.Account__c = a.id;
+            l1.ownerid = User3.id;
+            
+            locList.add(l1);
+            
+            insert locList;
+        }
+        
+        System.runAs(user)   {
+    
+            Test.StartTest();
+            Database.ExecuteBatch(new TPA_AccountEnrollmentApprovalCron());
+            Test.StopTest();
+            
+            TradePro_Location__c locationid = [Select ownerid from TradePro_Location__c where Name= 'loc 1'];
+           // System.AssertEquals(locationid.ownerid, user.id); 
+            
+            Contact iContact = [Select Id, Approval_Status__C from Contact where id =: conList[1].Id];
+            //System.AssertEquals(iContact.Approval_status__c, 'Deactivated');
+            
+             
+        }
+    }
+       
+}

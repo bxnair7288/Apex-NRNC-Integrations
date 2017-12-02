@@ -1,0 +1,169 @@
+map<string,NRNCNRRProjects__c>mapNRNCNRRProjects = new map<string,NRNCNRRProjects__c>();
+ 
+list<NRNCNRRProjects__c>lstNRNCNRRProjects = [select
+     id,application_number__c,Application_Rcvd_Date__c,elec_sa_id__c,gas_sa_id__c,ID_of_Project__c,
+     Inspection_Date_for_2K__c,kW__c,kWh__c,PreInstall_Review_Complete__c,Project_ID__c,Project_Status__c,
+     record_updated__c,Tech_Rev_Engr__c,Therms__c,Total_Incentive_Amt__c
+                               from NRNCNRRProjects__c where application_number__c like 'NC%' and record_updated__c = false  limit 5];
+ 
+if(!lstNRNCNRRProjects.isEmpty()){ 
+     for(NRNCNRRProjects__c project : lstNRNCNRRProjects){
+         mapNRNCNRRProjects.put(project.Project_ID__c,project);
+    }
+}
+ 
+system.debug('@@@1___'+lstNRNCNRRProjects.size());
+ 
+list<NRNCNRRProjects__c>lstUpdateproject = new list<NRNCNRRProjects__c>();
+ 
+if(!mapNRNCNRRProjects.isEmpty()){
+  
+   list<eo3__Ecology_Project__c>lstEcology =[select id,
+          Pre_Field_Report_Conducted__c,Technical_Review_Engineer__c,
+          Application_Package_Created_and_Attached__c,Appliaction_Signed__c,
+          Application_Received_Date__c,Engineer_Review_Complete__c,Engineer_Review_Complete_Date__c,
+          Implementation_Manager_Review_Complete__c,
+          eo3__Pre_Inspection_Required__c,
+          eo3__Pre_Inspection_Completed__c,
+          Use_Engineer_s_Pre_Field_Report__c,
+          Reason_Engineer_s_Pre_Field_Not_Used__c,
+          Pre_Installation_Review_Recommendation__c,
+          M_V_Plan__c,
+          Energy_Savings__c,
+          Site_Inspection_Overview_TR__c,
+          Statement_of_Influence_TR__c,
+          Baseline_Assumptions_TR__c,
+          Existing_Equipment_TR__c,
+          Proposed_Equipment_TR__c,
+          Existing_Operation_TR__c,
+          Proposed_Operation_TR__c,
+          Calculation_Methodology_TR__c,
+          Photos_TR__c,
+          Report_and_Application_Package_Attached__c,
+          QC_Required__c,
+          Pre_Install_QC_Required__c,
+          Pre_Installation_Review_Complete__c,
+          Pre_Install_Review_Complete__c,
+          eo3__Total_Incentive_Amount__c,
+          eo3__Project_ID__c,
+          Application_Number__c,
+          Approval_Status__c,
+          Application_Approved__c,
+          Installation_Status__c,
+          eo3__Project_Status__c,
+          Engineer__c,
+          Program_Manager__c,
+          Selected_for_Parallel_Review__c,
+          Project_Construction_Type__c
+   from eo3__Ecology_Project__c where eo3__Project_ID__c IN :
+            mapNRNCNRRProjects.keyset() and (eo3__Project_Status__c != 'Paid' and eo3__Project_Status__c != 'Withdrawn' and eo3__Project_Status__c != 'Approved for Payment')];
+ 
+if(!lstEcology.isEmpty()){
+  for(eo3__Ecology_Project__c ecoProject : lstEcology){
+     if(mapNRNCNRRProjects.containsKey(ecoProject.eo3__Project_ID__c)){
+       
+        //flag record_updated
+        NRNCNRRProjects__c project = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c);
+        project.record_updated__c = true;
+        lstUpdateproject.add(project);
+ 
+        //Update Project Record
+        system.debug('@@@2___'+ecoProject.eo3__Project_ID__c);
+        //prod ID = 005E0000003SHW5
+        //QA   ID = 005E0000003SHW5
+//ID id = 005E0000003SHW5;
+       if  (ecoProject.eo3__Project_Status__c  == 'Project Development' || ecoProject.eo3__Project_Status__c == 'Pre-Install Review') {
+           ecoProject.Application_Approved__c = null;
+           ecoProject.Installation_Status__c = null;
+       }
+       //Jeremy
+       if (ecoProject.Technical_Review_Engineer__c == null)
+            ecoProject.Technical_Review_Engineer__c  = '005E0000003SHW5';
+
+       if (ecoProject.Engineer__c == null)
+            ecoProject.Engineer__c  = '005E0000003SHW5';   
+       //Cecilia Tai
+       if (ecoProject.Program_Manager__c == null)
+            ecoProject.Program_Manager__c  = '005E0000001sNpE';
+      
+       if (ecoProject.Project_Construction_Type__c == null) 
+           ecoProject.Project_Construction_Type__c = 'Greenfield';
+//        if (ecoProject.Application_Received_Date__c == null || ecoProject.Application_Received_Date__c == '' || ecoProject.Application_Received_Date__c > Datetime.newInstance('2015-07-01T00:00:00Z') )
+        if (ecoProject.Application_Received_Date__c == null )
+            ecoProject.Application_Received_Date__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Application_Rcvd_Date__c;
+       
+        if (ecoProject.Application_Number__c.left(2) == '2K' ) {
+            system.debug('@@@2A___'+ecoProject.Application_Number__c.left(2)+' / '+ecoProject.eo3__Project_ID__c);
+            ecoProject.eo3__Pre_Inspection_Completed__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Inspection_Date_for_2K__c;
+            if (ecoProject.eo3__Pre_Inspection_Required__c != TRUE) ecoProject.eo3__Pre_Inspection_Required__c = TRUE;
+  
+        }
+        ecoProject.Pre_Install_Review_Complete__c  = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).PreInstall_Review_Complete__c;
+ 
+        if (ecoProject.Pre_Field_Report_Conducted__c != 'No' ) ecoProject.Pre_Field_Report_Conducted__c = 'No';  
+        if (ecoProject.Application_Package_Created_and_Attached__c != TRUE) ecoProject.Application_Package_Created_and_Attached__c = TRUE;
+        if (ecoProject.Appliaction_Signed__c != TRUE) ecoProject.Appliaction_Signed__c = TRUE;
+        if (ecoProject.Engineer_Review_Complete__c != TRUE)  ecoProject.Engineer_Review_Complete__c = TRUE;
+        if (ecoProject.Engineer_Review_Complete_Date__c == null )
+            ecoProject.Engineer_Review_Complete_Date__c  = ecoProject.Application_Received_Date__c;
+        if (ecoProject.Implementation_Manager_Review_Complete__c != TRUE) ecoProject.Implementation_Manager_Review_Complete__c = TRUE;
+        if (ecoProject.Use_Engineer_s_Pre_Field_Report__c  != 'No') ecoProject.Use_Engineer_s_Pre_Field_Report__c  = 'No';
+        if (ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c == null || ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c == '')
+            ecoProject.Reason_Engineer_s_Pre_Field_Not_Used__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Pre_Installation_Review_Recommendation__c == null || ecoProject.Pre_Installation_Review_Recommendation__c == '')
+            ecoProject.Pre_Installation_Review_Recommendation__c = 'N/A';
+        if (ecoProject.M_V_Plan__c == null || ecoProject.M_V_Plan__c == '')
+            ecoProject.M_V_Plan__c = 'N/A';
+        if (ecoProject.Energy_Savings__c == null || ecoProject.Energy_Savings__c == '')
+           ecoProject.Energy_Savings__c = 'Approved';
+        if (ecoProject.Site_Inspection_Overview_TR__c == null || ecoProject.Site_Inspection_Overview_TR__c == '')
+            ecoProject.Site_Inspection_Overview_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Statement_of_Influence_TR__c == null || ecoProject.Statement_of_Influence_TR__c == '')
+            ecoProject.Statement_of_Influence_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Baseline_Assumptions_TR__c == null || ecoProject.Baseline_Assumptions_TR__c == '')
+            ecoProject.Baseline_Assumptions_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Existing_Equipment_TR__c == null || ecoProject.Existing_Equipment_TR__c == '')
+            ecoProject.Existing_Equipment_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+       
+        if (ecoProject.Proposed_Equipment_TR__c == null || ecoProject.Proposed_Equipment_TR__c == '')
+            ecoProject.Proposed_Equipment_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Existing_Operation_TR__c == null || ecoProject.Existing_Operation_TR__c == '')
+            ecoProject.Existing_Operation_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Proposed_Operation_TR__c == null || ecoProject.Proposed_Operation_TR__c == '')
+            ecoProject.Proposed_Operation_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Calculation_Methodology_TR__c == null || ecoProject.Calculation_Methodology_TR__c == '')
+            ecoProject.Calculation_Methodology_TR__c  = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Photos_TR__c == null || ecoProject.Photos_TR__c == '')
+            ecoProject.Photos_TR__c = 'See Sharepoint Project Foder Note in Notes and Attachment section for details.';
+        if (ecoProject.Report_and_Application_Package_Attached__c != TRUE) 
+            ecoProject.Report_and_Application_Package_Attached__c  = TRUE;
+       
+        ecoProject.QC_Required__c  = 'No';
+        ecoProject.Pre_Install_QC_Required__c = 'No';
+        ecoProject.Pre_Installation_Review_Complete__c = TRUE;
+       
+        if (ecoProject.eo3__Total_Incentive_Amount__c == null || ecoProject.eo3__Total_Incentive_Amount__c == 0.0) {
+           ecoProject.eo3__Total_Incentive_Amount__c = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Total_Incentive_Amt__c;
+           ecoProject.eo3__Rebate_Override__c = mapNRNCNRRProjects.get(ecoProject.eo3__Project_ID__c).Total_Incentive_Amt__c;
+           ecoProject.eo3__Override_Reason__c ='Other';
+           ecoProject.eo3__Other_Override_Reason__c = 'Total Incentive populated from MDSS';
+        }
+        // update flag
+        if (ecoProject.eo3__Project_Status__c != 'Project Development' && ecoProject.eo3__Project_Status__c != 'Pre-Install Review')
+            ecoProject.Approval_Status__c = 'PAA Approved';
+
+        if (ecoProject.eo3__Project_Status__c == 'Installation')
+            ecoProject.Selected_for_Parallel_Review__c = 'No';
+
+     
+     }
+  }
+ 
+  update lstEcology;
+  if(!lstUpdateproject.isEmpty()){
+     update lstUpdateproject;
+  }
+ 
+}
+system.debug('@@@3___'+lstEcology.size());
+}
