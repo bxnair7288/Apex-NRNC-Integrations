@@ -1,0 +1,205 @@
+@isTest
+private class UtilityCodeNRNCMigrationTest{
+    static testmethod void createRelatedSiteTest(){
+        Schema.DescribeSObjectResult pfSchemaResult =
+        Schema.SObjectType.eo3__Portfolio__c;
+        Map<String,Schema.RecordTypeInfo> mapPfTypeInfo =
+        pfSchemaResult.getRecordTypeInfosByName();
+        String strPortfolioRecType = mapPfTypeInfo.get('Portfolio').getRecordTypeId();
+        //insert portfolio
+        
+     //   Project_Reference_CS__c prj_cs = new Project_Reference_CS__c();
+     
+   //     prj_cs.Name = 'Enable Project Reference Update';
+    //    prj_cs.Value__c = 'Y';
+     //   insert prj_cs;
+        
+        eo3__Portfolio__c m_portfolio = new
+        eo3__Portfolio__c(Name='MyPortfolio',eo3__Type__c='PG&E Sales',RecordTypeId=strPortfolioRecType);
+        insert m_portfolio;
+
+        //insert umc
+        eo3__Utility_Measure_Code__c m_umc = new
+        eo3__Utility_Measure_Code__c(Name='N/A',eo3__External_ID__c='N/A');
+        insert m_umc;
+        //insert measure
+        eo3__New_Equipment_List__c m_compPresc1 = new
+        eo3__New_Equipment_List__c(Name='B07',
+        eo3__External_Id__c = 'N/A',
+        eo3__Percentage_Savings__c=23.5,
+        eo3__Measure_Type__c= 'Prescriptive',
+        eo3__Utility_Measure_Code__c=m_umc.Id,
+        Effective_From__c = Date.today(),
+        Valid_To__c = Date.today(),
+        Measure_Type_Code__c = 'Custom',
+        eo3__Component_Type__c = 'HVAC'
+        );
+        insert m_compPresc1;
+        
+        account acc = new account();
+        acc.name = 'test';
+        acc.AccountNumber = '11111';
+        insert acc;
+        
+        contact con = new contact(lastname = 'test',eo3__ExternalID__c = '1080488999', Preferred_Contact_Method_Code__c ='2', phone='1234567890', accountId = acc.Id,eo3__Account_ExternalID__c = '111111');
+        insert con;
+        
+        contact con1 = new contact(lastname = 'test',eo3__ExternalID__c = '1080488998', Preferred_Contact_Method_Code__c ='2',phone='1234567890', eo3__Account_ExternalID__c = '111111');
+        insert con1;
+        
+        list<NRNCProjects__c>lstNrnc = new list<NRNCProjects__c>();
+        NRNCProjects__c projectRecord = new NRNCProjects__c();
+        projectRecord.Div_Cust_Code__c = '111111';
+        projectRecord.Naics__c = '111111';
+        projectRecord.Postal__c = '111111';
+        projectRecord.State__c = 'CA';
+        projectRecord.City__c = 'test city';
+        projectRecord.Address__c = 'Test address';
+        projectRecord.Business_Contact_Code__c = '1080488999';
+        projectRecord.Project_Desc__c = 'Test';
+        projectRecord.Project_Code__c = '111111';
+        lstNrnc.add(projectRecord);
+        
+        
+        NRNCProjects__c projectRecord1 = new NRNCProjects__c();
+        projectRecord1.Div_Cust_Code__c = '111112';
+        projectRecord1.Naics__c = '111112';
+        projectRecord1.Postal__c = '111112';
+        projectRecord1.State__c = 'CA';
+        projectRecord1.City__c = 'test city';
+        projectRecord1.Address__c = 'Test address';
+        projectRecord1.Business_Contact_Code__c = '1080488999';
+        projectRecord1.Project_Desc__c = 'Test';
+        projectRecord1.Project_Code__c = '11111';
+        lstNrnc.add(projectRecord1);
+        
+        NRNCProjects__c projectRecord2 = new NRNCProjects__c();
+        projectRecord2.Div_Cust_Code__c = '111112';
+        projectRecord2.Naics__c = '111112';
+        projectRecord2.Postal__c = '111112';
+        projectRecord2.State__c = 'CA';
+        projectRecord2.City__c = 'test city';
+        projectRecord2.Address__c = 'Test address';
+        projectRecord2.Business_Contact_Code__c = '1080488998';
+        projectRecord2.Project_Desc__c = 'Test';
+        projectRecord2.Project_Code__c = '11111';
+        lstNrnc.add(projectRecord2);
+        
+        insert lstNrnc;
+        
+        NRNC_Comments__c commentRecord = new NRNC_Comments__c();
+        commentRecord.Project_Description__c = 'Test';
+        commentRecord.Comments__c = 'Test';
+        commentRecord.Project_Code__c = '11111';
+        insert commentRecord;
+
+       NRNC_Comments__c commentRecord1 = new NRNC_Comments__c();
+        commentRecord1.Project_Description__c = 'Test1';
+        commentRecord1.Comments__c = 'Test1';
+        commentRecord1.Project_Code__c = '11112';
+        insert commentRecord1;
+        
+       NRNC_Comments__c commentRecord2 = new NRNC_Comments__c();
+        commentRecord2.Project_Description__c = 'Test';
+        commentRecord2.Comments__c = 'Test3';
+        commentRecord2.Project_Code__c = '11113';
+        insert commentRecord2;        
+                
+        NAICS_Code__c naicsCode = new NAICS_Code__c(name='111111', External_ID__c = '111111');
+        insert naicsCode;
+        
+        //insert program rows
+        eo3__program__c m_programs = new eo3__program__c (name = 'Eng Audit',eo3__program_code__c = 'AUD0001', eo3__Portfolio__c =
+        m_portfolio.Id);
+        insert m_programs;
+        
+        eo3__eoSite__c eosite = TestDataUtility.createEoSite();
+        eosite.eo3__Electric_SAID_Code__c = '0000000000';
+        eosite.eo3__External_ID__c = '0000011111';
+        insert eosite;
+
+        eo3__Ecology_Project__c projectRecord4 =
+        TestDataUtility.createproject(eoSite.id);
+        projectRecord4.name = 'Test';
+        projectRecord4.eo3__Program__c = m_programs.id;
+        projectRecord4.eo3__Project_ID__c = 'N/A';
+        insert projectRecord4;
+        system.assertnotequals(projectRecord4.id, null);
+        system.debug ('@@@Project ID : '+projectRecord4.id+' / '+projectRecord4.name);
+        list<NRNCProjectContact__c>lstNrncContact = new list<NRNCProjectContact__c>();
+        NRNCProjectContact__c nrncProjectCon = new NRNCProjectContact__c();
+        nrncProjectCon.Type_Code__c =7;
+        nrncProjectCon.Project_Desc__c = 'Test';
+        nrncProjectCon.First_Name__c = 'test';
+        nrncProjectCon.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon);
+        
+        NRNCProjectContact__c nrncProjectCon1 = new NRNCProjectContact__c();
+        nrncProjectCon1.Type_Code__c =12;
+        nrncProjectCon1.Project_Desc__c = 'Test';
+        nrncProjectCon1.First_Name__c = 'test';
+        nrncProjectCon1.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon1);
+        
+        NRNCProjectContact__c nrncProjectCon2 = new NRNCProjectContact__c();
+        nrncProjectCon2.Type_Code__c =11;
+        nrncProjectCon2.Project_Desc__c = 'Test';
+        nrncProjectCon2.First_Name__c = 'test';
+        nrncProjectCon2.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon2);
+        
+        insert lstNrncContact;
+        
+        
+        Profile p = [SELECT Id FROM Profile WHERE Name='System Administrator']; 
+
+        String orgId = UserInfo.getOrganizationId();
+        String dateString = String.valueof(Datetime.now()).replace(' ','').replace(':','').replace('-','');
+        Integer randomInt = Integer.valueOf(math.rint(math.random()*1000000));
+        String uniqueName = orgId + dateString + randomInt;
+
+        User u = new User(email = uniqueName + '@test' + orgId + '.org',
+                            Username = uniqueName + '@test' + orgId + '.org',
+
+            EmailEncodingKey='UTF-8', LastName='last',firstname='test',LanguageLocaleKey='en_US', 
+            LocaleSidKey='en_US', ProfileId = p.Id, 
+            TimeZoneSidKey='America/Los_Angeles',Alias = uniqueName.substring(18, 23));
+        insert u;
+
+
+        eo3__Climate_Vintage__c climateVintage = new eo3__Climate_Vintage__c();
+        climateVintage.eo3__Type__c = 'ANY';
+        climateVintage.eo3__Climate_Zone__c ='ANY';
+        climateVintage.eo3__Vintage__c = 'ANY';
+        climateVintage.Cost_Qualifier__c = 'I';
+        climateVintage.eo3__Measure_Code__c = 'N/A';
+        insert climateVintage;
+        
+        list<NRNCProjectDT__c>lstNrncDT = new list<NRNCProjectDT__c>();
+        NRNCProjectDT__c nrncDT = new NRNCProjectDT__c();
+        nrncDT.AMT__c =5;
+        nrncDT.QTY__c = 10;
+        nrncDT.Measure_code__c = 'N/A';
+        nrncDT.CurProjectID__c ='N/A';
+        lstNrncDT.add(nrncDT);
+        
+        NRNCProjectDT__c nrncDT1 = new NRNCProjectDT__c();
+        nrncDT1.AMT__c =5;
+        nrncDT1.QTY__c = 10;
+        nrncDT1.Measure_code__c = 'N/A';
+        nrncDT1.CurProjectID__c ='N/A';
+        lstNrncDT.add(nrncDT1);
+        
+        insert lstNrncDT;
+        
+        system.debug ('@@@Name of project : '+projectRecord4.name);
+        test.startTest();
+            UtilityCodeNRNCMigration_v2.createNotes();   
+            UtilityCodeNRNCMigration_v2.createRelatedSite();
+            UtilityCodeNRNCMigration_v2.updateRelatedObject();
+           
+            UtilityCodeNRNCMigration_v2.createProjectTeam();
+            UtilityCodeNRNCMigration_v2.createProjectMeasure();
+        test.stopTest();
+    }
+}

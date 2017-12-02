@@ -1,0 +1,81 @@
+@isTest
+private class UtilityNRNCProjectTeamTest{
+    static testmethod void UtilityNRNCProjectTeamTestMethod(){
+        Schema.DescribeSObjectResult pfSchemaResult = Schema.SObjectType.eo3__Portfolio__c;
+        Map<String,Schema.RecordTypeInfo> mapPfTypeInfo = pfSchemaResult.getRecordTypeInfosByName();
+        String strPortfolioRecType = mapPfTypeInfo.get('Portfolio').getRecordTypeId();
+        String orgId = UserInfo.getOrganizationId();
+        
+        //insert portfolio
+        eo3__Portfolio__c m_portfolio = new eo3__Portfolio__c(Name='MyPortfolio',eo3__Type__c='PG&E Sales',RecordTypeId=strPortfolioRecType);
+        insert m_portfolio;
+        
+        //insert program rows
+        eo3__program__c m_programs = new eo3__program__c (name = 'Eng Audit',eo3__program_code__c = 'AUD0001', eo3__Portfolio__c =
+        m_portfolio.Id);
+        insert m_programs;
+        
+        eo3__eoSite__c eosite = TestDataUtility.createEoSite();
+        eosite.eo3__Electric_SAID_Code__c = '0000000000';
+        eosite.eo3__External_ID__c = '000011111';
+        insert eosite;
+
+        eo3__Ecology_Project__c projectRecord = TestDataUtility.createproject(eoSite.id);
+        projectRecord.name = 'Test';
+        projectRecord.eo3__Program__c = m_programs.id;
+        projectRecord.eo3__Project_ID__c = 'Test';
+        insert projectRecord;
+        
+        system.assertequals(projectRecord.name,'Test');
+        system.assertnotequals(projectRecord.Id, null);
+        
+        list<NRNCProjectContact__c>lstNrncContact = new list<NRNCProjectContact__c>();
+        NRNCProjectContact__c nrncProjectCon = new NRNCProjectContact__c();
+        nrncProjectCon.Type_Code__c =7;
+        nrncProjectCon.Project_Desc__c = 'Test';
+        nrncProjectCon.First_Name__c = 'test';
+        nrncProjectCon.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon);
+        
+        NRNCProjectContact__c nrncProjectCon1 = new NRNCProjectContact__c();
+        nrncProjectCon1.Type_Code__c =12;
+        nrncProjectCon1.Project_Desc__c = 'Test';
+        nrncProjectCon1.First_Name__c = 'test';
+        nrncProjectCon1.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon1);
+        
+        NRNCProjectContact__c nrncProjectCon2 = new NRNCProjectContact__c();
+        nrncProjectCon2.Type_Code__c =11;
+        nrncProjectCon2.Project_Desc__c = 'Test';
+        nrncProjectCon2.First_Name__c = 'test';
+        nrncProjectCon2.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon2);
+        
+        NRNCProjectContact__c nrncProjectCon3 = new NRNCProjectContact__c();
+        nrncProjectCon3.Type_Code__c =5;
+        nrncProjectCon3.Project_Desc__c = 'Test';
+        nrncProjectCon3.First_Name__c = 'test';
+        nrncProjectCon3.Last_Name__c = 'last';
+        lstNrncContact.add(nrncProjectCon3);
+        
+        insert lstNrncContact;
+        
+        
+        Profile p = [SELECT Id FROM Profile WHERE Name='System Administrator']; 
+        
+        String dateString = String.valueof(Datetime.now()).replace(' ','').replace(':','').replace('-','');
+        Integer randomInt = Integer.valueOf(math.rint(math.random()*1000000));
+        String uniqueName = orgId + dateString + randomInt;
+        
+        User u = new User(Alias = 'standt', Email='standarduser@testorg.com', 
+            EmailEncodingKey='UTF-8', LastName='last',firstname='test',LanguageLocaleKey='en_US', 
+            LocaleSidKey='en_US', ProfileId = p.Id, 
+            TimeZoneSidKey='America/Los_Angeles',Username = uniqueName + '@test' + orgId + '.org');
+        insert u;
+        
+        test.starttest();
+            UtilityNRNCProjectTeam utilityProj = new UtilityNRNCProjectTeam();
+            Database.executeBatch(utilityProj);
+        test.stoptest();
+    }
+}

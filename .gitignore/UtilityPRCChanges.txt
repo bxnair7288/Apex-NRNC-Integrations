@@ -1,0 +1,57 @@
+List<eo3__Ecology_Project__c> lstProject = [SELECT ID, eo3__Project_ID__c, Name from eo3__Ecology_Project__c WHERE eo3__Project_ID__c IN
+       ('CODDNPGE13-021722', 'CODDNPGE13-021724', 'CODDNPGE13-021728', 'CODDNPGE13-021729', 'CODDNPGE13-035539', 'CODDNPGE13-021385', 'AGDDNPGE13-042641');
+List<eo3__Ecology_Project__c> lstUpdProj = new List<eo3__Ecology_Project__c>();
+for (eo3__Ecology_Project__c proj :lstProject) {
+     system.debug ('@@@@1___'+ proj.eo3__Project_ID__c);
+     lstUpdProj.add(proj);
+}
+system.debug ('@@@@2___'+lstUpdProj.Size());
+
+---------------
+
+List<eo3__Ecology_Project__c> lstProject = [SELECT ID, Deemed_Withdraw_Request__c, Deemed_Withdraw_Reason__c, Super_stage__c, eo3__Project_Status__c, eo3__Project_ID__c, Name from eo3__Ecology_Project__c WHERE eo3__Project_ID__c IN
+('CODDNPGE13-021385')];
+//       ('CODDNPGE13-021722', 'CODDNPGE13-021724', 'CODDNPGE13-021728', 'CODDNPGE13-021729', 'CODDNPGE13-035539', 'CODDNPGE13-021385', 'AGDDNPGE13-042641');
+List<eo3__Ecology_Project__c> lstUpdProj = new List<eo3__Ecology_Project__c>();
+for (eo3__Ecology_Project__c proj :lstProject) {
+     system.debug ('@@@@1___'+ proj.eo3__Project_ID__c);
+     proj.Deemed_Withdraw_Request__c = 'Yes';
+     proj.Deemed_Withdraw_Reason__c = 'PRC Change (See Notes & Attachments section)';
+     proj.Super_stage__c = 'N/A';
+     proj.eo3__Project_Status__c = 'Withdrawn';
+     lstUpdProj.add(proj);
+}
+system.debug ('@@@@2___'+lstUpdProj.Size());
+if (lstUpdProj.Size() > 0) 
+   lstUpdProj.Update();
+
+-----------------
+
+List<eo3__Ecology_Project__c> lstProject = [SELECT ID, Special_Project_Flag__c, Deemed_Withdraw_Request__c, Deemed_Withdraw_Reason__c, Super_stage__c, eo3__Project_Status__c, eo3__Project_ID__c, Name from eo3__Ecology_Project__c WHERE eo3__Project_ID__c IN
+//('CODDNPGE13-021385')];
+       ('CODDNPGE13-021722', 'CODDNPGE13-021724', 'CODDNPGE13-021728', 'CODDNPGE13-021729', 'CODDNPGE13-035539', 'CODDNPGE13-021385')];
+List<eo3__Ecology_Project__c> lstUpdProj = new List<eo3__Ecology_Project__c>();
+for (eo3__Ecology_Project__c proj :lstProject) {
+     system.debug ('@@@@1___'+ proj.eo3__Project_ID__c);
+     proj.Deemed_Withdraw_Request__c = 'Yes';
+     proj.Deemed_Withdraw_Reason__c = 'PRC Change (See Notes & Attachments section)';
+     proj.Super_stage__c = 'N/A';
+     proj.eo3__Project_Status__c = 'Withdrawn';
+     proj.Special_Project_Flag__c = 'Paid Record Change';
+     lstUpdProj.add(proj);
+}
+system.debug ('@@@@2___'+lstUpdProj.Size());
+if (lstUpdProj.Size() > 0) 
+   Update lstUpdProj;
+
+CODDNPGE13-021722
+CODDNPGE13-021724
+CODDNPGE13-021728
+CODDNPGE13-021729
+CODDNPGE13-035539
+CODDNPGE13-021385
+AGDDNPGE13-042641
+
+
+
+

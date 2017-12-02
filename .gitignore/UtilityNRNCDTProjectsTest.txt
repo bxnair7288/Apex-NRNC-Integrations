@@ -1,0 +1,94 @@
+@isTest
+private class UtilityNRNCDTProjectsTest{
+    static testmethod void UtilityNRNCDTProjectsTestMethod(){
+        //insert umc
+        eo3__Utility_Measure_Code__c m_umc = new eo3__Utility_Measure_Code__c(Name='N/A',eo3__External_ID__c='N/A');
+        insert m_umc;
+        
+        Schema.DescribeSObjectResult pfSchemaResult = Schema.SObjectType.eo3__Portfolio__c;
+        Map<String,Schema.RecordTypeInfo> mapPfTypeInfo = pfSchemaResult.getRecordTypeInfosByName();
+        String strPortfolioRecType = mapPfTypeInfo.get('Portfolio').getRecordTypeId();
+
+        eo3__New_Equipment_List__c m_compPresc1 = new
+        eo3__New_Equipment_List__c(Name='B07',
+        eo3__External_Id__c = 'N/A',
+        eo3__Percentage_Savings__c=23.5,
+        eo3__Measure_Type__c= 'Prescriptive',
+        eo3__Utility_Measure_Code__c=m_umc.Id,
+        Effective_From__c = Date.today(),
+        Valid_To__c = Date.today(),
+        Measure_Type_Code__c = 'Custom',
+        eo3__Component_Type__c = 'HVAC'
+        );
+        insert m_compPresc1;
+        
+        eo3__Climate_Vintage__c climateVintage = new eo3__Climate_Vintage__c();
+        climateVintage.eo3__Type__c = 'ANY';
+        climateVintage.eo3__Climate_Zone__c ='ANY';
+        climateVintage.eo3__Vintage__c = 'ANY';
+        climateVintage.Cost_Qualifier__c = 'I';
+        climateVintage.eo3__Measure_Code__c = 'N/A';
+        insert climateVintage;
+        
+        account acc = new account();
+        acc.name = 'test';
+        acc.AccountNumber = '11111';
+        insert acc;
+        
+        
+        eo3__Portfolio__c m_portfolio = new
+        eo3__Portfolio__c(Name='MyPortfolio',eo3__Type__c='PG&E Sales',RecordTypeId=strPortfolioRecType);
+        insert m_portfolio;
+        
+        
+        //insert program rows
+        eo3__program__c m_programs = new eo3__program__c (name = 'Eng Audit',eo3__program_code__c = 'AUD0001', eo3__Portfolio__c =
+        m_portfolio.Id);
+        insert m_programs;
+        
+        eo3__eoSite__c eosite = TestDataUtility.createEoSite();
+        eosite.eo3__Electric_SAID_Code__c = '0000000000';
+        eosite.eo3__External_ID__c = '000011111';
+        insert eosite;
+        
+        eo3__Component_Program_Attribute__c componentAttribute = new eo3__Component_Program_Attribute__c();
+        componentAttribute.eo3__Component__c = m_compPresc1.Id;
+        componentAttribute.eo3__Program__c = m_programs.Id;
+        componentAttribute.Measure_Type_Code__c = 'Calculated';
+        componentAttribute.Recipient_Type__c = 'Customer';
+        componentAttribute.eo3__Maximum_Rebate_Level__c = 100;
+        insert componentAttribute;
+        
+        eo3__Ecology_Project__c projectRecord = TestDataUtility.createproject(eoSite.id);
+        projectRecord.name = 'Test Project';
+        projectRecord.eo3__Program__c = m_programs.id;
+        projectRecord.eo3__Project_ID__c = 'N/A';
+        insert projectRecord;
+        
+        list<NRNCProjectDT__c>lstNrncDT = new list<NRNCProjectDT__c>();
+        NRNCProjectDT__c nrncDT = new NRNCProjectDT__c();
+        nrncDT.AMT__c =5;
+        nrncDT.QTY__c = 10;
+        nrncDT.Measure_code__c = 'N/A';
+        nrncDT.CurProjectID__c ='N/A';
+        nrncDT.Additional_Payee__c = 'test';
+        nrncDT.Contractor_Payee__c = 'test';
+        lstNrncDT.add(nrncDT);
+        
+        NRNCProjectDT__c nrncDT1 = new NRNCProjectDT__c();
+        nrncDT1.AMT__c =5;
+        nrncDT1.QTY__c = 10;
+        nrncDT1.Measure_code__c = 'N/A';
+        nrncDT1.CurProjectID__c ='test';
+        nrncDT1.Additional_Payee__c = 'test';
+        nrncDT1.Contractor_Payee__c = 'test1';
+        lstNrncDT.add(nrncDT1);
+        
+        insert lstNrncDT;
+        
+        test.startTest();
+            UtilityNRNCDTProjects utilityProjects = new UtilityNRNCDTProjects();
+            Database.executeBatch(utilityProjects);
+        test.stoptest();
+    }
+}

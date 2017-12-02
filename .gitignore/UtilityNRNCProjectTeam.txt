@@ -1,0 +1,78 @@
+// bxne copied code from UtilityNRNCMigration_v2 to here and made batchable due to Apex CPU time limit error
+//
+global class UtilityNRNCProjectTeam implements Database.Batchable < sObject > {
+    global Database.QueryLocator start(Database.BatchableContext BC) {
+        String query = 'select id,Contact_Code__c,First_Name__c,Last_Name__c,Project_Code__c,                                                   Project_Desc__c,Type_Code__c from NRNCProjectContact__c'; 
+        return Database.getQueryLocator(query);
+    }
+    global void execute(Database.BatchableContext BC, List <NRNCProjectContact__c> scope) {
+      
+            map<string,list<NRNCProjectContact__c>>mapProjectTeam = new map<String,list<NRNCProjectContact__c>>();
+            set<string>setUserName = new set<string>();
+            for(NRNCProjectContact__c projectContactRecord : scope){
+                if(projectContactRecord.Type_Code__c != null){
+
+                    if(mapProjectTeam.containsKey(projectContactRecord.Project_Desc__c)){
+                        list<NRNCProjectContact__c>lstprojComm = mapProjectTeam.get(projectContactRecord.Project_Desc__c);
+                        lstprojComm.add(projectContactRecord);
+                        mapProjectTeam.put(projectContactRecord.Project_Desc__c,lstprojComm);
+                    }
+                    else{
+                        mapProjectTeam.put(projectContactRecord.Project_Desc__c,new list<NRNCProjectContact__c>{projectContactRecord});
+                    }
+                    if(projectContactRecord.First_Name__c != null  && projectContactRecord.First_Name__c != '' && projectContactRecord.Last_Name__c != null  && projectContactRecord.Last_Name__c != ''){
+                        setUserName.add(projectContactRecord.First_Name__c+' '+projectContactRecord.Last_Name__c);
+                    }
+                }
+            }
+            map<string,Id>mapUserNameId = new map<string,Id>();
+            if(!setUserName.isEmpty()){
+                list<user>lstUser = [select id,name from user where name IN : setUserName];
+                if(!lstUser.isEmpty()){
+                    for(user u : lstUser){
+                        mapUserNameId.put(u.name,u.Id);
+                    }
+                }
+            }
+         list<eo3__Ecology_Project__c>lstProject = [select id,name,Local_Rep__c,Engineer__c,Program_Manager__c,Technical_Review_Engineer__c  from eo3__Ecology_Project__c where Name IN : mapProjectTeam.keySet()];
+    //        list<eo3__Ecology_Project__c>lstProject = [select id,name,Local_Rep__c,Engineer__c,Program_Manager__c,Technical_Review_Engineer__c  from eo3__Ecology_Project__c ];
+
+            system.debug('@@@___mapsize___'+mapProjectTeam+'___'+mapProjectTeam.size()+'___'+mapUserNameId+'___'+lstProject.size());
+            if(!lstProject.isEmpty() && !mapUserNameId.isEmpty()){
+                for(eo3__Ecology_Project__c  project : lstProject){
+                    if(mapProjectTeam.containsKey(project.name)){
+                        list<NRNCProjectContact__c>lstProjectContact = mapProjectTeam.get(project.name);
+                        for(NRNCProjectContact__c nrncProject : lstProjectContact){
+                            if(nrncProject.First_Name__c != null  && nrncProject.First_Name__c != '' && nrncProject.Last_Name__c != null && nrncProject.Last_Name__c != ''){
+                                string username = nrncProject.First_Name__c+' '+nrncProject.Last_Name__c;
+                                if(mapUserNameId.containsKey(username)){
+                                    // local rep = AS rep 7
+                                    if(nrncProject.Type_Code__c == 7){
+                                        project.Local_Rep__c = mapUserNameId.get(username);
+                                    }
+                                    // Engineer = Utility Engineer 12
+                                    if(nrncProject.Type_Code__c == 12){
+                                        project.Engineer__c = mapUserNameId.get(username);
+                                    }
+                                    // IM = SBD Rep 11 Implementation_Manager__c
+                                    if(nrncProject.Type_Code__c == 11){
+                                        project.Implementation_Manager__c = mapUserNameId.get(username);
+                                    }
+                                    // Technical Review Engr = 5
+                                    if(nrncProject.Type_Code__c == 5){
+                                        system.debug ('@@@....in type = 5'+username);
+                                        project.Technical_Review_Engineer__c = mapUserNameId.get(username);
+                                    }                                    
+                                }
+                            }
+                        }
+                    }
+                }
+                if(!lstProject.isEmpty()){                  
+                    Database.SaveResult[] lsr =   Database.update(lstProject, false);                   
+                }
+            }
+        
+    }
+    global void finish(Database.BatchableContext BC) {}
+}

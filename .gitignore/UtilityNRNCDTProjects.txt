@@ -1,0 +1,218 @@
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Moved the createProjectMeasure code here from
+//   UtilityCodeNRNCMigration_v2 class to resolve Time out issues
+// on Project measure custom object.
+// bxne - 5/28/2015
+// Execute it as anonymous block as below and then monitor results under Apex Jobs.
+// Id batjobId = Database.executeBatch(new UtilityNRNCDTProjects(),10); //Id batjobId = Database.executeBatch(new UtilityNRNCDTProjects(), 9);
+//---------------------------------------------------------------------------------------------------------------------------------------------------------
+global class UtilityNRNCDTProjects implements Database.Batchable < sObject > {
+    global Database.QueryLocator start(Database.BatchableContext BC) {
+        String query = 'Select id,AMT__c,CurProjectID__c,Measure_code__c,QTY__c,Title_24__c,Additional_Payee__c,Contractor_Payee__c from NRNCProjectDT__c';
+        return Database.getQueryLocator(query);
+    }
+    global void execute(Database.BatchableContext BC, List<NRNCProjectDT__c> scope) {
+        list<eo3__Custom_Tasks__c>lstProjectMeasure = new list<eo3__Custom_Tasks__c>();
+        set<string>setMeasureCode = new set<string>();
+        map<string,list<NRNCProjectDT__c>>mapProjectNrnc = new map<string,list<NRNCProjectDT__c>>();
+        map<string,Id>mapUtilityCode = new map<string,Id>();
+        map<string,eo3__New_Equipment_List__c>mapMeasureName = new map<string,eo3__New_Equipment_List__c>();
+        set<string>setAdditionalPayee = new set<string>();
+        set<string>setContractPayee = new set<string>();
+        for(NRNCProjectDT__c nrncProject : scope){
+            setMeasureCode.add(nrncProject.Measure_code__c);
+            if(mapProjectNrnc.containsKey(nrncProject.CurProjectID__c)){
+                list<NRNCProjectDT__c>lstNrnc = mapProjectNrnc.get(nrncProject.CurProjectID__c);
+                lstNrnc.add(nrncProject);
+                mapProjectNrnc.put(nrncProject.CurProjectID__c,lstNrnc);
+            }
+            else{
+                mapProjectNrnc.put(nrncProject.CurProjectID__c,new list<NRNCProjectDT__c>{nrncProject});
+            }
+            setAdditionalPayee.add(nrncProject.Additional_Payee__c);
+            setContractPayee.add(nrncProject.Contractor_Payee__c);
+        }
+        map<string,Id>mapVintageName = new map<string,Id>();
+        set<Id>setMeasureId = new set<Id>();
+        if(!setMeasureCode.isEmpty()){
+            list<eo3__Utility_Measure_Code__c>lstUtilityCode=[select
+            id,eo3__External_ID__c from eo3__Utility_Measure_Code__c where
+            eo3__External_ID__c IN : setMeasureCode];
+            if(!lstUtilityCode.isEmpty()){
+                for(eo3__Utility_Measure_Code__c utility : lstUtilityCode){
+
+                    mapUtilityCode.put(utility.eo3__External_ID__c,utility.Id);
+                }
+            }
+            list<eo3__New_Equipment_List__c>lstMeasure =[Select Id,name,eo3__External_ID__c,eo3__Component_Type__c from eo3__New_Equipment_List__c where eo3__External_ID__c IN : setMeasureCode];
+            if(!lstMeasure.isEmpty()){
+                for(eo3__New_Equipment_List__c measure : lstMeasure){
+                    mapMeasureName.put(measure.eo3__External_ID__c,measure);
+                    setMeasureId.add(measure.Id);
+                }
+            }
+            list<eo3__Climate_Vintage__c>lstVintage = [select id,eo3__Measure_Code__c,eo3__Type__c,eo3__Climate_Zone__c,Cost_Qualifier__c,eo3__Vintage__c from eo3__Climate_Vintage__c where eo3__Measure_Code__c IN : setMeasureCode AND eo3__Type__c = 'ANY' AND eo3__Climate_Zone__c = 'ANY' AND eo3__Vintage__c = 'ANY' AND Cost_Qualifier__c = 'I'];
+            if(!lstVintage.isEmpty()){
+                for(eo3__Climate_Vintage__c vintage : lstVintage){
+                    mapVintageName.put(vintage.eo3__Measure_Code__c,VINTAGE.Id);
+                }
+            }
+        }
+        map<string,Id>mapAdditionalPayee = new map<string,Id>();
+        map<string,Id>mapContractPayee = new map<string,Id>();
+        list<account>accInsertList = new list<account>();
+        Id masterAccountId = Schema.SObjectType.account.getRecordTypeInfosByName().get('01 - Master Account').getRecordTypeId(); 
+        if(!setContractPayee.isEmpty()){
+            list<account>lstAcc = [select id,name from account where name IN : setAdditionalPayee OR name IN : setContractPayee];
+            if(!lstAcc.isEmpty()){
+                for(account acc : lstAcc){
+                    if(setAdditionalPayee.contains(acc.name)){
+                        mapAdditionalPayee.put(acc.name,acc.Id);
+                        setAdditionalPayee.remove(acc.name);
+                    }
+                    if(setContractPayee.contains(acc.name)){
+                        mapContractPayee.put(acc.name,acc.Id);
+                        setContractPayee.remove(acc.name);
+                    }
+                }
+            }
+            if(!setContractPayee.isEmpty()){
+                for(string accName : setContractPayee){
+                    account accountRecord = new account();
+                    accountRecord.name = accName;
+                    accountRecord.recordtypeId = masterAccountId;
+                    accInsertList.add(accountRecord);
+                }
+                if(!accInsertList.isEmpty()){
+                    insert accInsertList;
+                    for(account acc : accInsertList){
+                        mapContractPayee.put(acc.name,acc.Id);
+                    }
+                }  
+            }
+        }
+        set<Id>setProgramId = new set<Id>();
+        map<string,eo3__Component_Program_Attribute__c>mapProgramMeasure = new map<string,eo3__Component_Program_Attribute__c>();
+        if(!setMeasureId.isEmpty() && !mapProjectNrnc.isEmpty()){
+            list<eo3__Ecology_Project__c>lstEcologyProject1 =[select id,eo3__Contractor_Payee__c,eo3__Additional_Payee__c,eo3__Project_ID__c,eo3__Program__c from eo3__Ecology_Project__c where eo3__Project_ID__c IN : mapProjectNrnc.keyset()];
+            for(eo3__Ecology_Project__c ecoProj : lstEcologyProject1){
+                setProgramId.add(ecoProj.eo3__Program__c);
+            }
+            if(!setProgramId.isEmpty()){
+                list<eo3__Component_Program_Attribute__c>lstProgramMeasure = [select id,Measure_Type_Code__c,Recipient_Type__c,eo3__Component__c,eo3__Program__c from eo3__Component_Program_Attribute__c where eo3__Component__c IN : setMeasureId AND eo3__Program__c IN : setProgramId];
+                for(eo3__Component_Program_Attribute__c progMeasure : lstProgramMeasure){
+                    string uniqueIdentifier = string.valueof(progMeasure.eo3__Component__c)+string.valueof(progMeasure.eo3__Program__c);
+                    mapProgramMeasure.put(uniqueIdentifier,progMeasure);
+                }
+            }
+        }
+       // list<areaRecord>lstAreaCode = new list<areaRecord>();
+        list<eo3__Ecology_Project__c>updateProjectList = new list<eo3__Ecology_Project__c>();
+        if(!mapUtilityCode.isEmpty() && !mapProjectNrnc.isEmpty() && !mapMeasureName.isEmpty() && !mapVintageName.isEmpty()){
+            list<eo3__Ecology_Project__c>lstEcologyProject =[select id,eo3__Program__c,eo3__Contractor_Payee__c,eo3__Additional_Payee__c,eo3__Project_ID__c,eo3__Site_new__c 
+            from eo3__Ecology_Project__c where  eo3__Project_ID__c IN : mapProjectNrnc.keyset()];
+            if(!lstEcologyProject.isEmpty()){
+                for(eo3__Ecology_Project__c ecoProject : lstEcologyProject){
+                    boolean projectUpdated = false;
+
+                    if(mapProjectNrnc.containsKey(ecoProject.eo3__Project_ID__c)){
+                        list<NRNCProjectDT__c>nrncProjectRec = mapProjectNrnc.get(ecoProject.eo3__Project_ID__c);
+                        for(NRNCProjectDT__c nrncProjectRecord : nrncProjectRec){
+                            eo3__Custom_Tasks__c projMeasure = new eo3__Custom_Tasks__c();
+                            projMeasure.Eo3__Total_Quantity__c = nrncProjectRecord.QTY__c;
+                            projMeasure.eo3__Uncapped_Incentive__c = nrncProjectRecord.AMT__c;
+                            projMeasure.Building_Type__c = 'ANY';
+                            projMeasure.Climate_Zone__c = 'ANY';
+                            projMeasure.Vintage_Code__c = 'ANY';
+                            projMeasure.T24__c = nrncProjectRecord.Title_24__c;
+                            //projMeasure.
+
+
+                            if(mapVintageName.containsKey(nrncProjectRecord.Measure_code__c))
+                                projMeasure.eo3__Climate_and_Vintage__c = mapVintageName.get(nrncProjectRecord.Measure_code__c);
+
+                            projMeasure.eo3__Project__c = ecoProject.Id;
+
+
+                            if(mapMeasureName.containsKey(nrncProjectRecord.Measure_code__c)){
+                                projMeasure.name = mapMeasureName.get(nrncProjectRecord.Measure_code__c).name;
+                                projMeasure.eo3__Measure__c = mapMeasureName.get(nrncProjectRecord.Measure_code__c).Id;
+                                projMeasure.eo3__Technology_Type__c = mapMeasureName.get(nrncProjectRecord.Measure_code__c).eo3__Component_Type__c;
+                                if(!mapProgramMeasure.isEmpty()){
+                                    string uniqueCode = string.valueof(mapMeasureName.get(nrncProjectRecord.Measure_code__c).Id)+string.valueof(ecoProject.eo3__Program__c);
+                                    if(mapProgramMeasure.containsKey(uniqueCode)){
+                                        projMeasure.Measure_Type_Code__c = mapProgramMeasure.get(uniqueCode).Measure_Type_Code__c;
+                                        projMeasure.eo3__Program_Measure__c = mapProgramMeasure.get(uniqueCode).Id;
+                                        projMeasure.Recipient_Type__c = mapProgramMeasure.get(uniqueCode).Recipient_Type__c;
+                                    }
+                                }
+                            }
+
+
+                            if(mapUtilityCode.containsKey(nrncProjectRecord.Measure_code__c)){
+
+                                projMeasure.eo3__Utility_Measure_Code__c = mapUtilityCode.get(nrncProjectRecord.Measure_code__c);
+
+                                if(nrncProjectRecord.Measure_code__c == 'CIA52'){
+
+                                    if(mapContractPayee.containsKey(nrncProjectRecord.Contractor_Payee__c)){
+
+                                        ecoProject.eo3__Contractor_Payee__c = mapContractPayee.get(nrncProjectRecord.Contractor_Payee__c);
+                                        projectUpdated = true;
+                                    }
+                                }
+
+                                if(nrncProjectRecord.Measure_code__c == 'CIA53'){
+
+                                    if(mapContractPayee.containsKey(nrncProjectRecord.Contractor_Payee__c)){
+
+                                        ecoProject.eo3__Additional_Payee__c = mapContractPayee.get(nrncProjectRecord.Contractor_Payee__c);
+                                        projectUpdated = true;
+                                    }
+                                }
+                            }
+                            lstProjectMeasure.add(projMeasure);
+                            /*eo3__Area__c areaRecord = new eo3__Area__c();
+                            areaRecord.eo3__DEER_Factor_Driver__c = 'Other';
+                            areaRecord.Name = 'Main Project Area';
+                            areaRecord.eo3__eoSite__c = ecoProject.eo3__Site_new__c;
+                            lstAreaCode.add(areaRecord);
+                            */
+                        }
+                    }
+                    if(projectUpdated)
+                    updateProjectList.add(ecoProject);
+                }
+            }
+        }
+        if(!lstProjectMeasure.isEmpty()){
+            Database.SaveResult[] lsr =  Database.insert(lstProjectMeasure, false);
+            //insert lstAreaCode;
+            list<eo3__Subcontractor_Reported_Measures__c>lstSubcontractor = new list<eo3__Subcontractor_Reported_Measures__c>();
+            list<eo3__Custom_Tasks__c>lstCustomTask = [select id,name,eo3__Project__c,eo3__Program_Measure__c, eo3__Utility_Measure_Code__c,eo3__Measure__c,Measure_Type_Code__c from eo3__Custom_Tasks__c where ID IN : lstProjectMeasure];
+            if(!lstCustomTask.isEmpty()){
+                for(eo3__Custom_Tasks__c taskRecord : lstCustomTask){
+                    eo3__Subcontractor_Reported_Measures__c subcontractorRecord = new eo3__Subcontractor_Reported_Measures__c();
+                    subcontractorRecord.eo3__Current_Project__c = taskRecord.eo3__Project__c;
+                    subcontractorRecord.eo3__Task__c = taskRecord.Id;
+                    subcontractorRecord.eo3__Component_Program_Attribute__c = taskRecord.eo3__Program_Measure__c;
+                    subcontractorRecord.eo3__Subcontractor_Component__c = taskRecord.eo3__Measure__c;
+                    subcontractorRecord.Measure_Type_Code__c = taskRecord.Measure_Type_Code__c;
+                    subcontractorRecord.eo3__Quantity_high_prec__c = 1;
+                    subcontractorRecord.eo3__Utility_Measure_Code__c = taskRecord.eo3__Utility_Measure_Code__c;
+                    subcontractorRecord.Name = taskRecord.name;
+                    //subcontractorRecord.eo3__Area__c = lstAreaCode[i].Id;
+                    lstSubcontractor.add(subcontractorRecord);
+                }
+            }
+            if(!lstSubcontractor.isEmpty()){
+                insert lstSubcontractor;
+            }
+        }
+        if(!updateProjectList.isEmpty()){
+            Database.SaveResult[] lsr1 = Database.update(updateProjectList, false);
+        }
+
+    }
+    global void finish(Database.BatchableContext BC) {}
+}
