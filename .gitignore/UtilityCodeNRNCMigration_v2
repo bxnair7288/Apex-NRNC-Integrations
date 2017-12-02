@@ -1,0 +1,453 @@
+public class UtilityCodeNRNCMigration_v2{
+    public class createSiteException extends Exception {}
+    //-------------------------------------------------------------------------
+    // This is for Custom core projects migration project for NRNC migration.
+    // bxne - 5/8/2015
+    // 1. Create dummy site records for stub SA's in MDSS
+    // 2. Find missing contacts
+    // 3. Create Project comments in Notes section
+    // 4. Create Project Team Info
+    // 5. 5/28 - create batchable class for createprojectmeasure method to avoid too many soql errors.
+    //--------------------------------------------------------------------------
+
+
+    public static void createRelatedSite(){
+        list<eo3__eoSite__c>insertSiteList = new list<eo3__eoSite__c>();
+        set<string>setNaicsCodes = new set<string>();
+        set<string>setContactExternlId = new set<string>();
+        map<string,Id>mapExternalContact = new map<string,Id>();
+        set<string>setProjectCode = new set<string>();
+        map<string,Id>mapNaics = new map<string,Id>();
+        list<contact>lstContact = new list<contact>();
+        map<string,contact>mapExternal = new map<string,contact>();
+        list<NRNC_Comments__c>lstComment = new list<NRNC_Comments__c>();
+
+        list<NRNCProjects__c>lstprojects = [select
+id,Div_Cust_Code__c,Naics__c,Service_Desc__c,
+Postal__c,State__c,City__c,Address__c,Business_Contact_Code__c,Project_Code__c,Project_Desc__c
+from NRNCProjects__c where Business_Contact_Code__c in ('8354051','8534035', '8750191', '8762759')];
+//from NRNCProjects__c];
+           // where Business_Contact_Code__c = '8619199'];
+        //not in ('114852')];
+        if(!lstprojects.isEmpty()){
+            for(NRNCProjects__c proj : lstprojects){
+
+                system.debug ('@@__5'+proj.Project_Code__c);
+                //system.assertnotequals(proj.project_code__c,'94286');
+                if(proj.Project_Code__c.length() == 5){
+                    setProjectCode.add('00000'+proj.Project_Code__c);
+                }
+                if(proj.Project_Code__c.length() == 6){
+                    setProjectCode.add('0000'+proj.Project_Code__c);
+                }
+                setNaicsCodes.add(proj.Naics__c);
+
+                setContactExternlId.add(proj.Business_Contact_Code__c);
+            }
+            lstContact = [select
+id,eo3__ExternalID__c,eo3__Account_ExternalID__c,accountId,account.AccountNumber
+            from contact where eo3__ExternalID__c IN : setContactExternlId];
+            if(!lstContact.isEmpty()){
+                for(contact con : lstContact){
+
+mapExternalContact.put(con.eo3__ExternalID__c,con.accountId);
+                    mapExternal.put(con.eo3__ExternalID__c,con);
+                }
+            }
+        }
+        if(!setNaicsCodes.isEmpty()){
+            list<NAICS_Code__c>lstNaics = [select id,External_ID__c
+            from NAICS_Code__c where External_ID__c IN : setNaicsCodes];
+            if(!lstNaics.isEmpty()){
+                for(NAICS_Code__c naics : lstNaics){
+                    mapNaics.put(naics.External_ID__c,naics.Id);
+
+                }
+            }
+        }
+        if(!mapExternalContact.isEmpty()){
+            system.debug('@@@__contactlist'+lstContact+'___'+setprojectcode);
+            list<eo3__eoSite__c>lstSite =[select
+id,eo3__Electric_SAID_Code__c,eo3__External_ID__c from eo3__eoSite__c
+            where eo3__External_ID__c IN : setProjectCode and
+eo3__Electric_SAID_Code__c = '0000000000'];
+            if(!lstSite.isEmpty()){
+                for(eo3__eoSite__c site : lstSite){
+                    if(!setProjectCode.isEmpty()){
+                        setProjectCode.remove(site.eo3__External_ID__c);
+                    }
+                }
+            }
+            if(!lstContact.isEmpty()){
+                for(NRNCProjects__c projectRecord : lstprojects){
+                    string projCode = '';
+                    if(projectRecord.Business_Contact_Code__c <> null
+&& mapExternal.containskey(projectRecord.Business_Contact_Code__c) &&
+mapExternal.get(projectRecord.Business_Contact_Code__c).accountid ==
+null ){
+                      NRNC_Comments__c comment = new NRNC_Comments__c();
+                      comment.name = 'Exception';
+                      comment.comments__c =
+mapExternal.get(projectRecord.Business_Contact_Code__c).Id;
+                      lstComment.add(comment);
+                     }
+                    if(projectRecord.Project_Code__c.length() == 5){
+                        projCode ='00000'+projectRecord.Project_Code__c;
+                    }
+
+                    if(projectRecord.Project_Code__c.length() == 6){
+                        projCode = '0000'+projectRecord.Project_Code__c;
+                    }
+
+system.debug('@@@projcode---'+projCode+'___'+setProjectCode.contains(projCode));
+                    if(!setProjectCode.isEmpty() &&
+setProjectCode.contains(projCode) &&
+mapExternalContact.get(projectRecord.Business_Contact_Code__c) !=
+null){
+                        setProjectCode.remove(projCode);
+                        eo3__eoSite__c siteRecord = new eo3__eoSite__c();
+                        siteRecord.eo3__Account__c =
+mapExternalContact.get(projectRecord.Business_Contact_Code__c);
+                        //set vintage
+                        //set climate zone
+                        siteRecord.eo3__Business_Type__c = 'ASM - Assembly';
+                        siteRecord.eo3__Gas_SAID_Code__c = '0000000000';
+
+                        siteRecord.SA_is_for_New_Construction_Project__c = true;
+                        siteRecord.eo3__Electric_SAID_Code__c = '0000000000';
+                        if(!mapNaics.isEmpty()){
+                            if(mapNaics.containsKey(projectRecord.Naics__c)){
+                                siteRecord.NAICS_Code_relation__c =
+mapNaics.get(projectRecord.Naics__c);
+                            }
+                        }
+                        siteRecord.Imported_NAICS_Code__c =
+projectRecord.Naics__c;
+                        siteRecord.Imported_Service_Descriptor__c=
+projectRecord.Service_Desc__c;
+                        siteRecord.name = projectRecord.Project_Desc__c;
+                        siteRecord.eo3__Billing_Address__c =
+projectRecord.Address__c;
+                        siteRecord.eo3__Zip_Code__c = projectRecord.Postal__c;
+                        siteRecord.eo3__city__c = projectRecord.city__c;
+                        siteRecord.eo3__state__c = projectRecord.State__c;
+
+                        if(projectRecord.Project_Code__c != '' &&
+projectRecord.Project_Code__c != null){
+                            if(projectRecord.Project_Code__c.length() == 5){
+                                siteRecord.eo3__External_ID__c =
+'00000'+projectRecord.Project_Code__c;
+                            }
+                            if(projectRecord.Project_Code__c.length() == 6){
+                                siteRecord.eo3__External_ID__c =
+'0000'+projectRecord.Project_Code__c;
+                            }
+                        }
+                        insertSiteList.add(siteRecord);
+                    }
+                }
+                system.debug ('@@@After if____ '+insertSiteList.size());
+              //  insert lstcomment;
+                if(!insertSiteList.isEmpty()){
+                    try{
+                        insert insertSiteList;
+                    }
+                    catch(exception e){
+                        throw new createSiteException(e.getmessage());
+                    }
+                }
+            }
+        }
+    }
+    //------------------------------------------------------
+    //Find contact codes in mdss but not in EI
+    //------------------------------------------------------
+    public static void updateRelatedObject(){
+        set<string>setContactCodes = new set<string>();
+        set<string>setContactfound = new set<string>();
+        list<NRNCProjects__c>lstprojects = [select
+        id,Div_Cust_Code__c,Naics__c,Postal__c,State__c,City__c,Address__c,Business_Contact_Code__c,Project_Desc__c
+        from NRNCProjects__c];
+        if(!lstprojects.isEmpty()){
+            for(NRNCProjects__c proj : lstprojects){
+                setContactCodes.add(proj.Business_Contact_Code__c);
+            }
+        }
+        if(!setContactCodes.isEmpty()){
+            list<contact>lstContact = [select
+            id,eo3__ExternalID__c,eo3__Account_ExternalID__c,accountId,account.AccountNumber
+            from contact where eo3__ExternalID__c IN : setContactCodes];
+            if(!lstContact.isEmpty()){
+                for(contact contactRecord : lstContact){
+                    setContactfound.add(contactRecord.eo3__ExternalID__c);
+                }
+            }
+            if(!setContactfound.isEmpty()){
+                list<NRNCProjects__c>lstprojectsFound = [select
+
+
+
+id,found__c,Div_Cust_Code__c,Naics__c,Postal__c,State__c,City__c,Address__c,Business_Contact_Code__c,Project_Desc__c
+                from NRNCProjects__c where Business_Contact_Code__c IN :
+                setContactfound];
+                if(!lstprojectsFound.isEmpty()){
+                    for(NRNCProjects__c project : lstprojectsFound){
+                        project.found__c = true;
+                    }
+                    try{
+                        update lstprojectsFound;
+                    }
+                    catch(exception e){
+                        throw new createSiteException(e.getmessage());
+                    }
+                }
+            }
+        }
+    }
+    //---------------------------------------------
+    // Create Project Comments in the Note section
+    //---------------------------------------------
+    public static void createNotes(){
+        map<string,list<string>>mapProjectComments = new
+        map<String,list<string>>();
+        list<NRNC_Comments__c>lstNrNCComments = [select
+        id,Project_Description__c,Comments__c from NRNC_Comments__c];
+        if(!lstNrNCComments.isEmpty()){
+            for(NRNC_Comments__c commentRecord : lstNrNCComments){
+
+
+if(mapProjectComments.containsKey(commentRecord.Project_Description__c)){
+                    list<string>lstComment =
+
+
+mapProjectComments.get(commentRecord.Project_Description__c);
+                    lstComment.add(commentRecord.Comments__c);
+
+
+
+mapProjectComments.put(commentRecord.Project_Description__c,lstComment);
+                }
+                else{
+
+
+
+mapProjectComments.put(commentRecord.Project_Description__c,new
+                    list<string>{commentRecord.Comments__c});
+                }
+            }
+        }
+        list<note>lstnote = new list<note>();
+        system.debug('@@@Map project comments : '+mapProjectComments.keySet());
+        list<eo3__Ecology_Project__c>lstProject = [select id,name from
+       eo3__Ecology_Project__c where Name IN : mapProjectComments.keySet()];
+        //  list<eo3__Ecology_Project__c>lstProject = [select id,name from
+       // eo3__Ecology_Project__c];
+        if(!lstProject.isEmpty()){
+            for(eo3__Ecology_Project__c  project : lstProject){
+                note noteRecord = new note();
+                noteRecord.parentId = project.Id;
+                noteRecord.title = 'This project was Imported from MDSS';
+                lstnote.add(noteRecord);
+                if(mapProjectComments.containsKey(project.name)){
+                    list<string>listComment =
+                    mapProjectComments.get(project.name);
+                    for(string s : listComment){
+                       if (s <> null && s <> '') {
+                        note noteRecord1 = new note();
+                        noteRecord1.parentId = project.Id;
+                        if (s.length() > 80)
+                            noteRecord1.title = s.substring(0, 79);
+                        else
+                            noteRecord1.title = s;
+
+                        noteRecord1.body = s;
+                        lstnote.add(noteRecord1);
+                       }
+                    }
+                }
+            }
+            if(!lstnote.isEmpty()){
+                try{
+                    insert lstnote;
+                }
+                catch(exception e){
+                    throw new createSiteException(e.getmessage());
+                }
+            }
+        }
+    }
+//--------------------------------------------------------------------------
+// Create Project Team Info
+//--------------------------------------------------------------------------
+public static void createProjectTeam(){
+    map<string,list<NRNCProjectContact__c>>mapProjectTeam = new map<String,list<NRNCProjectContact__c>>();
+    set<string>setUserName = new set<string>();
+    list<NRNCProjectContact__c>lstNrNCProjectContact = [select id,Contact_Code__c,First_Name__c,Last_Name__c,Project_Code__c,Project_Desc__c,Type_Code__c from NRNCProjectContact__c];
+    if(!lstNrNCProjectContact.isEmpty()){
+        for(NRNCProjectContact__c projectContactRecord : lstNrNCProjectContact){
+            if(projectContactRecord.Type_Code__c != null){
+
+                if(mapProjectTeam.containsKey(projectContactRecord.Project_Desc__c)){
+                    list<NRNCProjectContact__c>lstprojComm =
+                    mapProjectTeam.get(projectContactRecord.Project_Desc__c);
+                    lstprojComm.add(projectContactRecord);
+
+                    mapProjectTeam.put(projectContactRecord.Project_Desc__c,lstprojComm);
+                }
+                else{
+
+                    mapProjectTeam.put(projectContactRecord.Project_Desc__c,new
+                    list<NRNCProjectContact__c>{projectContactRecord});
+                }
+                if(projectContactRecord.First_Name__c != null  &&
+                        projectContactRecord.First_Name__c != '' &&
+                        projectContactRecord.Last_Name__c != null  &&
+                        projectContactRecord.Last_Name__c != ''){
+                    setUserName.add(projectContactRecord.First_Name__c+' '+projectContactRecord.Last_Name__c);
+                }
+            }
+        }
+    }
+  //  system.assertequals('hello1','hello2');
+    map<string,Id>mapUserNameId = new map<string,Id>();
+    if(!setUserName.isEmpty()){
+        list<user>lstUser = [select id,name from user where name IN : setUserName];
+        if(!lstUser.isEmpty()){
+            for(user u : lstUser){
+                mapUserNameId.put(u.name,u.Id);
+            }
+        }
+    }
+    system.assertequals('hello2','hello2');
+    list<eo3__Ecology_Project__c>lstProject = [select id,name,Local_Rep__c,Engineer__c,Program_Manager__c from
+    eo3__Ecology_Project__c where Name IN : mapProjectTeam.keySet()];
+    if(!lstProject.isEmpty() && !mapUserNameId.isEmpty()){
+        list<eo3__Ecology_Project__c>lstUpdatedProject = new list<eo3__Ecology_Project__c>();
+        for(eo3__Ecology_Project__c  project : lstProject){
+            if(mapProjectTeam.containsKey(project.name)){
+                list<NRNCProjectContact__c>lstProjectContact =  mapProjectTeam.get(project.name);
+                boolean updatedProject = false;
+                for(NRNCProjectContact__c nrncProject : lstProjectContact){
+                    if(nrncProject.First_Name__c != null  && nrncProject.First_Name__c != '' && nrncProject.Last_Name__c != null
+                            && nrncProject.Last_Name__c != ''){
+                        string username = nrncProject.First_Name__c+' '+nrncProject.Last_Name__c;
+                        if(mapUserNameId.containsKey(username)){
+                            system.assertequals('hello3','hello3');
+                            // local rep = AS rep 7
+                            if(nrncProject.Type_Code__c == 7){
+                                project.Local_Rep__c =
+                                mapUserNameId.get(username);
+                                updatedProject = true;
+                            }
+                            // Engineer = Utility Engineer 12
+                            if(nrncProject.Type_Code__c == 12){
+                                project.Engineer__c =
+                                mapUserNameId.get(username);
+                                updatedProject = true;
+                            }
+                            // IM = SBD Rep 11 Implementation_Manager__c
+                            if(nrncProject.Type_Code__c == 11){
+                                project.Implementation_Manager__c =
+                                mapUserNameId.get(username);
+                                updatedProject = true;
+                            }
+                        }
+                    }                   
+                }
+                if(updatedProject)
+                    lstUpdatedProject.add(project);
+            }
+        }
+        system.assertequals('hello','hello');
+        if(!lstUpdatedProject.isEmpty()){
+            try{
+                update lstUpdatedProject;
+            }
+            catch(exception e){
+                throw new createSiteException(e.getmessage());
+            }
+        }
+    }
+}
+public static void createProjectMeasure(){
+    set<string>setMeasureCode = new set<string>();
+    map<string,list<NRNCProjectDT__c>>mapProjectNrnc = new map<string,list<NRNCProjectDT__c>>();
+    map<string,Id>mapUtilityCode = new map<string,Id>();
+    map<string,string>mapMeasureName = new map<string,string>();
+    list<NRNCProjectDT__c>lstNrncProject = [Select id,AMT__c,CurProjectID__c,Measure_code__c,QTY__c from NRNCProjectDT__c];
+    if(!lstNrncProject.isEmpty()){
+        for(NRNCProjectDT__c nrncProject : lstNrncProject){
+            setMeasureCode.add(nrncProject.Measure_code__c);
+            if(mapProjectNrnc.containsKey(nrncProject.CurProjectID__c)){
+                list<NRNCProjectDT__c>lstNrnc = mapProjectNrnc.get(nrncProject.CurProjectID__c);
+                lstNrnc.add(nrncProject);
+                mapProjectNrnc.put(nrncProject.CurProjectID__c,lstNrnc);
+            }
+            else{
+                mapProjectNrnc.put(nrncProject.CurProjectID__c,new list<NRNCProjectDT__c>{nrncProject});
+            }
+        }
+    }
+    map<string,Id>mapVintageName = new map<string,Id>();
+    if(!setMeasureCode.isEmpty()){
+        list<eo3__Utility_Measure_Code__c>lstUtilityCode=[select id,eo3__External_ID__c from eo3__Utility_Measure_Code__c where eo3__External_ID__c IN : setMeasureCode];
+        if(!lstUtilityCode.isEmpty()){
+            for(eo3__Utility_Measure_Code__c utility : lstUtilityCode){
+                mapUtilityCode.put(utility.eo3__External_ID__c,utility.Id);
+            }
+        }
+        list<eo3__New_Equipment_List__c>lstMeasure =[Select Id,name,eo3__External_ID__c from eo3__New_Equipment_List__c where eo3__External_ID__c IN : setMeasureCode];
+        if(!lstMeasure.isEmpty()){
+            for(eo3__New_Equipment_List__c measure : lstMeasure){
+                mapMeasureName.put(measure.eo3__External_ID__c,measure.name);
+            }
+        }
+list<eo3__Climate_Vintage__c>lstVintage = [select id,eo3__Measure_Code__c,eo3__Type__c,eo3__Climate_Zone__c,Cost_Qualifier__c,eo3__Vintage__c from eo3__Climate_Vintage__c where eo3__Measure_Code__c IN : setMeasureCode AND eo3__Type__c = 'ANY' AND eo3__Climate_Zone__c = 'ANY' AND eo3__Vintage__c = 'ANY' AND Cost_Qualifier__c = 'I'];
+  if(!lstVintage.isEmpty()){
+   for(eo3__Climate_Vintage__c vintage : lstVintage){
+    mapVintageName.put(vintage.eo3__Measure_Code__c,VINTAGE.Id);
+   }
+  }        
+    }
+    list<eo3__Custom_Tasks__c>lstProjectMeasure = new list<eo3__Custom_Tasks__c>();
+    //list<eo3__Subcontractor_Reported_Measures__c>lstSubContractor = new list<eo3__Subcontractor_Reported_Measures__c>();
+if(!mapUtilityCode.isEmpty() && !mapProjectNrnc.isEmpty() && !mapMeasureName.isEmpty() && !mapVintageName.isEmpty()){
+        list<eo3__Ecology_Project__c>lstEcologyProject = [select id,eo3__Project_ID__c from eo3__Ecology_Project__c where eo3__Project_ID__c IN : mapProjectNrnc.keyset()];
+        if(!lstEcologyProject.isEmpty()){
+            for(eo3__Ecology_Project__c ecoProject : lstEcologyProject){
+                if(mapProjectNrnc.containsKey(ecoProject.eo3__Project_ID__c)){
+                    list<NRNCProjectDT__c>nrncProjectRec = mapProjectNrnc.get(ecoProject.eo3__Project_ID__c);
+                    for(NRNCProjectDT__c nrncProjectRecord : nrncProjectRec){
+                        eo3__Custom_Tasks__c projMeasure = new eo3__Custom_Tasks__c();
+                        projMeasure.Eo3__Total_Quantity__c = nrncProjectRecord.QTY__c;
+                        projMeasure.eo3__Uncapped_Incentive__c = nrncProjectRecord.AMT__c;
+                        projMeasure.Building_Type__c = 'ANY';
+                        projMeasure.Climate_Zone__c = 'ANY';
+                        projMeasure.Vintage_Code__c = 'ANY';
+                       // projMeasure.
+                if(mapVintageName.containsKey(nrncProjectRecord.Measure_code__c)) 
+       projMeasure.eo3__Climate_and_Vintage__c = mapVintageName.get(nrncProjectRecord.Measure_code__c);
+              SYSTEM.DEBUG ('$$$$___'+projMeasure.eo3__Climate_and_Vintage__c );
+                
+                        projMeasure.eo3__Project__c = ecoProject.Id;
+                        if(mapMeasureName.containsKey(nrncProjectRecord.Measure_code__c))
+                            projMeasure.name = mapMeasureName.get(nrncProjectRecord.Measure_code__c);
+                        if(mapUtilityCode.containsKey(nrncProjectRecord.Measure_code__c))
+                            projMeasure.eo3__Utility_Measure_Code__c = mapUtilityCode.get(nrncProjectRecord.Measure_code__c);
+                                       SYSTEM.DEBUG ('$$$$Name___'+projMeasure.eo3__Utility_Measure_Code__c );   
+                        lstProjectMeasure.add(projMeasure);
+                    }
+                }
+            }
+        }
+    }
+    if(!lstProjectMeasure.isEmpty()){
+        try{
+            insert lstProjectMeasure;
+        }
+        catch(exception e){
+            throw new createSiteException(e.getmessage());
+        }
+    }
+}
+}
